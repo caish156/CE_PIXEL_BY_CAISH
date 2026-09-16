@@ -1,0 +1,135 @@
+# =========================
+
+# Photoshop / Plugin
+
+# =========================
+
+# Local configuration
+
+.env
+.env.*
+!.env.example
+
+# Logs
+
+*.log
+logs/
+*.tmp
+
+# OS files
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+
+# Node / JavaScript
+
+# =========================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build / generated files
+
+dist/
+build/
+out/
+.cache/
+.parcel-cache/
+
+# =========================
+
+# Python / AI Server
+
+# =========================
+
+**pycache**/
+*.py[cod]
+*.pyo
+
+.venv/
+venv/
+env/
+
+.pytest_cache/
+.mypy_cache/
+
+# Python logs
+
+*.log
+
+# =========================
+
+# AI Models / Weights
+
+# =========================
+
+*.gguf
+*.ggml
+*.safetensors
+*.onnx
+*.pt
+*.pth
+*.bin
+
+models/
+weights/
+checkpoints/
+
+# =========================
+
+# Generated / Temporary Data
+
+# =========================
+
+temp/
+tmp/
+cache/
+output/
+outputs/
+results/
+
+# Test images / generated images
+
+test_output/
+inference_output/
+
+# =========================
+
+# IDE
+
+# =========================
+
+.vscode/
+.idea/
+
+# =========================
+
+# Local Photoshop files
+
+# =========================
+
+# Uncomment if these are only local working files
+
+# *.psd
+
+# *.psb
+
+# =========================
+
+# Local secrets / configs
+
+# =========================
+
+*.key
+*.pem
+*.crt
+*.secret
+secrets.json
+config.local.json
+settings.local.json

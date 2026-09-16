@@ -1,0 +1,999 @@
+.tabbar {
+    display: flex;
+    flex: 0 0 auto;
+    padding: 12px;
+    background-color: rgba(0, 0, 0, .25);
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    flex-wrap: wrap;
+}
+
+.tabsection {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.tabsection:nth-of-type(2) {
+    justify-content: flex-end;
+}
+
+.tabsection * {
+    margin: 0 4px;
+}
+
+/* =========================================================
+   CORRECTION ENGINE
+   Color Palette:
+   Blue / White / Black only
+   ========================================================= */
+
+:root {
+    --ce-blue: #1769ff;
+    --ce-blue-dark: #0d4fd8;
+    --ce-white: #ffffff;
+    --ce-black: #000000;
+    --ce-border: #d9d9d9;
+    --ce-light: #f5f5f5;
+}
+
+
+/* =========================================================
+   MAIN APP
+   ========================================================= */
+
+.ce-app {
+    width: 100%;
+    min-height: 100%;
+    box-sizing: border-box;
+
+    background: var(--ce-white);
+    color: var(--ce-black);
+
+    font-family: "Rajdhani", "Segoe UI", Arial, sans-serif;
+
+    padding: 18px;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.ce-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding-bottom: 18px;
+
+    border-bottom: 2px solid var(--ce-black);
+}
+
+.ce-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-family: "Rajdhani", "Segoe UI", sans-serif;
+}
+
+.ce-subtitle {
+    margin-top: 5px;
+
+    font-size: 11px;
+    color: var(--ce-blue);
+    font-family: "Rajdhani", "Segoe UI", sans-serif;
+    letter-spacing: 0.5px;
+}
+
+.ce-version {
+    font-size: 10px;
+    font-weight: 700;
+
+    border: 1px solid var(--ce-black);
+
+    padding: 5px 8px;
+}
+
+
+/* =========================================================
+   SECTION
+   ========================================================= */
+
+.ce-section {
+    margin-top: 18px;
+}
+
+.ce-section-title {
+    font-size: 10px;
+    font-weight: 700;
+
+    letter-spacing: 1.2px;
+    font-family: "Rajdhani", "Segoe UI", sans-serif;
+    margin-bottom: 9px;
+}
+
+
+/* =========================================================
+   FOLDER BUTTON
+   ========================================================= */
+
+.ce-folder-button {
+    width: 100%;
+    height: 46px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    background: var(--ce-blue);
+    color: var(--ce-white);
+
+    border: none;
+    border-radius: 3px;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    letter-spacing: 0.7px;
+
+    cursor: pointer;
+}
+
+.ce-folder-button:hover {
+    background: var(--ce-blue-dark);
+}
+
+.ce-folder-button:active {
+    background: var(--ce-black);
+}
+
+.ce-folder-icon {
+    width: 18px;
+    height: 18px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid var(--ce-white);
+    border-radius: 50%;
+
+    font-size: 15px;
+    line-height: 1;
+}
+
+
+/* =========================================================
+   FOLDER INFO
+   ========================================================= */
+
+.ce-folder-info {
+    margin-top: 9px;
+
+    border: 1px solid var(--ce-border);
+
+    padding: 10px;
+}
+
+.ce-folder-name {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.ce-folder-path {
+    margin-top: 4px;
+
+    font-size: 10px;
+}
+
+
+/* =========================================================
+   IMAGE STATS
+   ========================================================= */
+
+.ce-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+
+    border: 1px solid var(--ce-black);
+}
+
+.ce-stat {
+    min-height: 75px;
+
+    display: flex;
+    flex-direction: column;
+
+    justify-content: center;
+    align-items: center;
+
+    border-right: 1px solid var(--ce-black);
+}
+
+.ce-stat:last-child {
+    border-right: none;
+}
+
+.ce-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    font-family: "Rajdhani", "Segoe UI", sans-serif;
+    color: var(--ce-blue);
+}
+
+.ce-stat-label {
+    margin-top: 5px;
+
+    font-size: 8px;
+    font-weight: 700;
+
+    letter-spacing: 0.8px;
+}
+
+
+/* =========================================================
+   PROGRESS
+   ========================================================= */
+
+.ce-progress-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ce-progress-percent {
+    font-size: 22px;
+    font-weight: 700;
+
+    color: var(--ce-blue);
+}
+
+.ce-progress-track {
+    width: 100%;
+    height: 12px;
+
+    background: var(--ce-light);
+
+    border: 1px solid var(--ce-black);
+
+    box-sizing: border-box;
+}
+
+.ce-progress-fill {
+    height: 100%;
+
+    background: var(--ce-blue);
+
+    transition: width 0.25s ease;
+}
+
+.ce-progress-details {
+    display: flex;
+    justify-content: space-between;
+
+    margin-top: 6px;
+
+    font-size: 9px;
+}
+
+
+/* =========================================================
+   PROCESS BUTTON
+   ========================================================= */
+
+.ce-process-button {
+    width: 100%;
+    height: 42px;
+
+    background: var(--ce-black);
+    color: var(--ce-white);
+
+    border: none;
+    border-radius: 3px;
+
+    font-size: 11px;
+    font-weight: 700;
+
+    letter-spacing: 0.8px;
+
+    cursor: pointer;
+}
+
+.ce-process-button:hover {
+    background: var(--ce-blue);
+}
+
+.ce-process-button:disabled {
+    background: var(--ce-light);
+    color: var(--ce-black);
+
+    border: 1px solid var(--ce-border);
+
+    cursor: default;
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.ce-status {
+    margin-top: 18px;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 9px 10px;
+
+    border-top: 1px solid var(--ce-black);
+
+    font-size: 10px;
+}
+
+.ce-status-dot {
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: var(--ce-blue);
+}
+
+.ce-status-text {
+    font-weight: 600;
+    font-size: 10px;
+}
+
+/* =========================================================
+   CORRECTION ENGINE
+   BLUE / WHITE / BLACK ONLY
+   ========================================================= */
+
+/* =========================================================
+   PIXEL BY CAISH — CORRECTION ENGINE
+   Clean / Dark / Tech / Neon
+   ========================================================= */
+
+:root {
+    --bg: #07090d;
+    --panel: #0d1118;
+    --panel-2: #111722;
+
+    --blue: #1683ff;
+    --blue-bright: #38a7ff;
+    --blue-dark: #0754a8;
+
+    --white: #f5f8ff;
+    --muted: #7e8b9e;
+    --border: #1d2838;
+
+    --shadow-blue: rgba(22, 131, 255, 0.22);
+}
+
+
+/* =========================================================
+   APP
+   ========================================================= */
+
+.ce-app {
+    min-height: 100vh;
+    box-sizing: border-box;
+
+    padding: 14px;
+
+    background:
+        radial-gradient(circle at 85% 5%,
+            rgba(22, 131, 255, 0.12),
+            transparent 32%),
+        radial-gradient(circle at 5% 95%,
+            rgba(22, 131, 255, 0.07),
+            transparent 30%),
+        linear-gradient(145deg,
+            #05070a 0%,
+            #090d13 55%,
+            #070a0f 100%);
+
+    color: var(--white);
+
+    font-family:
+        "Segoe UI",
+        Arial,
+        sans-serif;
+
+    overflow-y: auto;
+
+    position: relative;
+}
+
+
+/* subtle tech grid */
+
+.ce-app::before {
+    content: "";
+
+    position: fixed;
+    inset: 0;
+
+    pointer-events: none;
+
+    opacity: 0.035;
+
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.5) 1px,
+            transparent 1px),
+        linear-gradient(90deg,
+            rgba(255, 255, 255, 0.5) 1px,
+            transparent 1px);
+
+    background-size: 24px 24px;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.ce-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding: 15px 16px;
+
+    margin-bottom: 12px;
+
+    background:
+        linear-gradient(135deg,
+            rgba(20, 28, 40, 0.95),
+            rgba(9, 13, 19, 0.95));
+
+    border: 1px solid var(--border);
+
+    border-radius: 8px;
+
+    box-shadow:
+        0 0 0 1px rgba(22, 131, 255, 0.03),
+        0 8px 25px rgba(0, 0, 0, 0.35);
+
+    position: relative;
+    overflow: hidden;
+}
+
+
+/* blue tech line */
+
+.ce-header::after {
+    content: "";
+
+    position: absolute;
+
+    left: 0;
+    bottom: 0;
+
+    width: 42%;
+    height: 2px;
+
+    background:
+        linear-gradient(90deg,
+            transparent,
+            var(--blue),
+            transparent);
+
+    box-shadow:
+        0 0 10px var(--blue);
+}
+
+
+.ce-title {
+    font-size: 15px;
+
+    font-weight: 700;
+
+    letter-spacing: 1.8px;
+
+    color: var(--white);
+}
+
+
+.ce-subtitle {
+    margin-top: 4px;
+
+    font-size: 10px;
+
+    letter-spacing: 0.8px;
+
+    color: var(--muted);
+
+    text-transform: uppercase;
+}
+
+
+.ce-version {
+    font-size: 10px;
+
+    color: var(--blue-bright);
+
+    letter-spacing: 1px;
+
+    padding: 5px 8px;
+
+    border: 1px solid rgba(22, 131, 255, 0.35);
+
+    border-radius: 4px;
+
+    background: rgba(22, 131, 255, 0.06);
+
+    box-shadow:
+        0 0 10px rgba(22, 131, 255, 0.08);
+}
+
+
+/* =========================================================
+   SECTIONS
+   ========================================================= */
+
+.ce-section {
+    position: relative;
+
+    margin-bottom: 10px;
+
+    padding: 12px;
+
+    background:
+        linear-gradient(145deg,
+            rgba(15, 21, 30, 0.96),
+            rgba(9, 13, 19, 0.96));
+
+    border: 1px solid var(--border);
+
+    border-radius: 7px;
+
+    box-shadow:
+        0 5px 18px rgba(0, 0, 0, 0.22);
+}
+
+
+/* tiny blue indicator */
+
+.ce-section::before {
+    content: "";
+
+    position: absolute;
+
+    left: -1px;
+    top: 13px;
+
+    width: 2px;
+    height: 18px;
+
+    background: var(--blue);
+
+    box-shadow:
+        0 0 8px var(--blue);
+}
+
+
+.ce-section-title {
+    font-size: 12px;
+
+    font-weight: 700;
+
+    letter-spacing: 1.5px;
+
+    color: #8fa1b8;
+
+    margin-bottom: 9px;
+
+    text-transform: uppercase;
+}
+
+
+/* =========================================================
+   FOLDER BUTTON
+   ========================================================= */
+
+.ce-folder-button {
+    width: 100%;
+
+    padding: 11px;
+
+    border: 1px solid rgba(22, 131, 255, 0.45);
+
+    border-radius: 5px;
+
+    background:
+        linear-gradient(135deg,
+            #0d4f9d,
+            #0873db);
+
+    color: white;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    letter-spacing: 1px;
+
+    cursor: pointer;
+
+    box-shadow:
+        0 0 14px rgba(22, 131, 255, 0.16),
+        inset 0 1px rgba(255, 255, 255, 0.12);
+
+    transition:
+        0.18s ease;
+}
+
+
+.ce-folder-button:hover {
+    background:
+        linear-gradient(135deg,
+            #1265c5,
+            #1683ff);
+
+    box-shadow:
+        0 0 18px rgba(22, 131, 255, 0.35);
+}
+
+
+.ce-folder-button:disabled {
+    opacity: 0.55;
+
+    cursor: default;
+
+    box-shadow: none;
+}
+
+
+/* =========================================================
+   FOLDER INFO
+   ========================================================= */
+
+.ce-folder-info {
+    margin-top: 10px;
+
+    padding: 9px;
+
+    background: rgba(0, 0, 0, 0.22);
+
+    border: 1px solid #182333;
+
+    border-radius: 5px;
+}
+
+
+.ce-folder-name {
+    font-size: 11px;
+
+    font-weight: 600;
+
+    color: var(--white);
+
+    white-space: nowrap;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+}
+
+
+.ce-folder-path {
+    margin-top: 4px;
+
+    font-size: 12px;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   STATS
+   ========================================================= */
+
+.ce-stats {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 6px;
+}
+
+
+.ce-stat {
+    padding: 10px 5px;
+
+    text-align: center;
+
+    background:
+        linear-gradient(145deg,
+            #101722,
+            #0a0f16);
+
+    border: 1px solid #1a2636;
+
+    border-radius: 5px;
+}
+
+
+.ce-stat-value {
+    font-size: 19px;
+
+    font-weight: 700;
+
+    color: var(--blue-bright);
+
+    text-shadow:
+        0 0 10px rgba(56, 167, 255, 0.25);
+}
+
+
+.ce-stat-label {
+    margin-top: 3px;
+
+    font-size: 12px;
+
+    color: var(--muted);
+
+    letter-spacing: 1px;
+}
+
+
+/* =========================================================
+   CURRENT IMAGE
+   ========================================================= */
+
+.ce-current-image {
+    padding: 10px;
+
+    border-radius: 5px;
+
+    background:
+        linear-gradient(90deg,
+            rgba(22, 131, 255, 0.08),
+            rgba(22, 131, 255, 0.015));
+
+    border: 1px solid rgba(22, 131, 255, 0.18);
+}
+
+
+.ce-current-label {
+    font-size: 12px;
+
+    letter-spacing: 1.4px;
+
+    color: var(--blue-bright);
+
+    margin-bottom: 5px;
+}
+
+
+.ce-current-name {
+    font-family: "Rajdhani", "Segoe UI", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+
+    color: var(--white);
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   PROGRESS
+   ========================================================= */
+
+.ce-progress-header {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+}
+
+
+.ce-progress-header .ce-section-title {
+    margin-bottom: 0;
+}
+
+
+.ce-progress-percent {
+    font-size: 11px;
+
+    font-weight: 700;
+
+    color: var(--blue-bright);
+}
+
+
+.ce-progress-track {
+    height: 5px;
+
+    margin-top: 10px;
+
+    overflow: hidden;
+
+    border-radius: 10px;
+
+    background: #141b25;
+
+    border: 1px solid #202b3a;
+}
+
+
+.ce-progress-fill {
+    height: 100%;
+
+    background:
+        linear-gradient(90deg,
+            var(--blue-dark),
+            var(--blue-bright));
+
+    box-shadow:
+        0 0 10px rgba(22, 131, 255, 0.55);
+
+    transition:
+        width 0.3s ease;
+}
+
+
+.ce-progress-details {
+    display: flex;
+
+    justify-content: space-between;
+
+    margin-top: 7px;
+
+    font-size:12px;
+
+    color: var(--muted);
+}
+
+
+/* =========================================================
+   FACE RESULT
+   ========================================================= */
+
+.ce-face-card {
+    padding: 10px;
+
+    background: #090e15;
+
+    border: 1px solid #192535;
+
+    border-radius: 5px;
+
+    font-size: 10px;
+
+    color: var(--muted);
+}
+
+
+.ce-face-card strong {
+    color: var(--blue-bright);
+
+    font-size: 13px;
+
+    text-shadow:
+        0 0 8px rgba(56, 167, 255, 0.25);
+}
+
+
+/* =========================================================
+   STOP BUTTON
+   ========================================================= */
+
+.ce-process-button {
+    width: 100%;
+
+    padding: 9px;
+
+    background: transparent;
+
+    color: var(--blue-bright);
+
+    border: 1px solid rgba(22, 131, 255, 0.45);
+
+    border-radius: 5px;
+
+    font-size: 9px;
+
+    font-weight: 700;
+
+    letter-spacing: 1.5px;
+
+    cursor: pointer;
+
+    transition: 0.18s ease;
+}
+
+
+.ce-process-button:hover {
+    background: rgba(22, 131, 255, 0.08);
+
+    border-color: var(--blue);
+
+    box-shadow:
+        0 0 12px rgba(22, 131, 255, 0.18);
+}
+
+
+/* =========================================================
+   STATUS
+   ========================================================= */
+
+.ce-status {
+    display: flex;
+
+    align-items: center;
+
+    gap: 17px;
+
+    padding: 9px 10px;
+
+    margin-top: 2px;
+
+    border-top: 1px solid #17202d;
+
+    color: var(--muted);
+
+    font-size: 9px;
+
+    letter-spacing: 0.4px;
+}
+
+
+.ce-status-dot {
+    width: 6px;
+    height: 6px;
+    margin-right: 8px;
+    flex: 0 0 auto;
+
+    border-radius: 50%;
+
+    background: var(--blue-bright);
+
+    box-shadow:
+        0 0 6px var(--blue),
+        0 0 12px rgba(22, 131, 255, 0.5);
+}
+
+
+.ce-status-text {
+    overflow: hidden;
+
+    white-space: nowrap;
+
+    text-overflow: ellipsis;
+}
+
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+.ce-app::-webkit-scrollbar {
+    width: 5px;
+}
+
+.ce-app::-webkit-scrollbar-track {
+    background: #070a0f;
+}
+
+.ce-app::-webkit-scrollbar-thumb {
+    background: #1c3654;
+
+    border-radius: 10px;
+}
+
+.ce-app::-webkit-scrollbar-thumb:hover {
+    background: var(--blue-dark);
+}

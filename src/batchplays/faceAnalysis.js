@@ -19,45 +19,57 @@ async function getFaceLightBatchPlay(x, y, width, height) {
             }
         ], {});
 
-        // Helper: Fetches exact mean of a specific color channel inside the selection
-        const getChannelMean = async (channelEnumName) => {
-            try {
-                const res = await batchPlay([
-                    {
-                        _obj: "get",
-                        _target: [
-                            { _property: "histogram" },
-                            { 
-                                _ref: "channel", 
-                                _enum: "channel", 
-                                _value: channelEnumName 
-                            }
-                        ]
+        // Helper: Fetches exact mean of a specific color channel inside the selection.
+        // Accepts enum candidates — Photoshop builds me channel enums alag hote hain
+        // (full words "green"/"blue" vs short codes "grn"/"bl ").
+        const getChannelMean = async (channelCandidates) => {
+            const candidates =
+                Array.isArray(channelCandidates) ? channelCandidates : [channelCandidates];
+
+            for (const channelEnumName of candidates) {
+                try {
+                    const res = await batchPlay([
+                        {
+                            _obj: "get",
+                            _target: [
+                                { _property: "histogram" },
+                                {
+                                    _ref: "channel",
+                                    _enum: "channel",
+                                    _value: channelEnumName
+                                }
+                            ],
+                            _options: { dialogOptions: "dontDisplay" }
+                        }
+                    ], { synchronousExecution: false });
+
+                    const histArray = res[0] && res[0].histogram;
+                    if (!histArray || !Array.isArray(histArray)) {
+                        console.warn(`Channel '${channelEnumName}' histogram nahi mila, next candidate try...`);
+                        continue;
                     }
-                ], { synchronousExecution: false });
 
-                const histArray = res[0] && res[0].histogram;
-                if (!histArray || !Array.isArray(histArray)) return 128; // Fallback safety
-
-                let totalPixels = 0;
-                let weightedSum = 0;
-                for (let i = 0; i < histArray.length; i++) {
-                    const count = histArray[i];
-                    totalPixels += count;
-                    weightedSum += count * i;
+                    let totalPixels = 0;
+                    let weightedSum = 0;
+                    for (let i = 0; i < histArray.length; i++) {
+                        const count = histArray[i];
+                        totalPixels += count;
+                        weightedSum += count * i;
+                    }
+                    return totalPixels === 0 ? 0 : weightedSum / totalPixels;
+                } catch (err) {
+                    console.warn(`Could not read channel ${channelEnumName}: ${err && err.message}`);
                 }
-                return totalPixels === 0 ? 0 : weightedSum / totalPixels;
-            } catch (err) {
-                console.warn(`Could not read channel ${channelEnumName}, defaulting to 128`);
-                return 128;
             }
+
+            console.warn(`Could not read channel(s) [${candidates.join(", ")}], defaulting to 128`);
+            return 128;
         };
 
         // 2. Read Exact Means for R, G, and B inside the selection
-        // (descriptor channel enums: "red" | "grn" | "bl ")
-        const avgR = Math.round(await getChannelMean("red"));
-        const avgG = Math.round(await getChannelMean("grn"));
-        const avgB = Math.round(await getChannelMean("bl "));
+        const avgR = Math.round(await getChannelMean(["red"]));
+        const avgG = Math.round(await getChannelMean(["green", "grn"]));
+        const avgB = Math.round(await getChannelMean(["blue", "bl "]));
 
         // Calculate standard perceived luminance
         const luminance = Number((0.299 * avgR + 0.587 * avgG + 0.114 * avgB).toFixed(1));

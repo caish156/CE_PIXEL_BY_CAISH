@@ -348,13 +348,13 @@ async function readImageColourData() {
 
   const histogram_r =
     await readRedHistogram();
-
+  console.log("🔴 Red Histogram:", histogram_r);
   const histogram_g =
     await readGreenHistogram();
-
+ console.log("🟢 Green Histogram:", histogram_g);
   const histogram_b =
     await readBlueHistogram();
-
+  console.log("🔵 Blue Histogram:", histogram_b);
 
   // ==========================================================
   // DEBUG

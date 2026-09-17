@@ -23,47 +23,83 @@ async function readDocumentHistogram() {
 // READ CHANNEL HISTOGRAM
 // ============================================================
 
-async function readChannelHistogram(channelName) {
+// ============================================================
+// NOTE:
+// Photoshop builds me channel enum values alag ho sakte hain:
+//   full words  -> "red" | "green" | "blue" | "gray" | "composite"
+//   short codes -> "red" | "grn"  | "bl "  | "gray" | "composite"
+// Isliye candidates try karte hain — jo pehla VALID 256-bin
+// histogram return kare, wahi final hai.
+// ============================================================
 
-    const result = await batchPlay(
-        [
-            {
-                _obj: "get",
+function isValidHistogram(value) {
+    return (
+        Array.isArray(value) &&
+        value.length === 256 &&
+        value.every((v) => typeof v === "number" && isFinite(v))
+    );
+}
 
-                _target: [
+async function readChannelHistogram(channelNames) {
+
+    const candidates =
+        Array.isArray(channelNames) ? channelNames : [channelNames];
+
+    for (const candidate of candidates) {
+
+        try {
+
+            const result = await batchPlay(
+                [
                     {
-                        _property: "histogram"
-                    },
-                    {
-                        _enum: "channel",
-                        _ref: "channel",
-                        _value: channelName
+                        _obj: "get",
+
+                        _target: [
+                            {
+                                _property: "histogram"
+                            },
+                            {
+                                _enum: "channel",
+                                _ref: "channel",
+                                _value: candidate
+                            }
+                        ],
+
+                        _options: {
+                            dialogOptions: "dontDisplay"
+                        }
                     }
                 ],
-
-                _options: {
-                    dialogOptions: "dontDisplay"
+                {
+                    synchronousExecution: true
                 }
+            );
+
+            if (
+                result &&
+                result[0] &&
+                isValidHistogram(result[0].histogram)
+            ) {
+                return result[0].histogram;
             }
-        ],
-        {
-            synchronousExecution: true
+
+            console.warn(
+                `Channel '${candidate}' -> valid 256-bin histogram nahi mila` +
+                (result && result[0]
+                    ? ` (response keys: ${Object.keys(result[0]).join(", ")})`
+                    : "")
+            );
+
+        } catch (err) {
+            console.warn(
+                `Channel '${candidate}' get failed: ${err && err.message}`
+            );
         }
-    );
-
-
-    if (
-        !result ||
-        !result[0] ||
-        !Array.isArray(result[0].histogram)
-    ) {
-        throw new Error(
-            `Invalid ${channelName} histogram response`
-        );
     }
 
-
-    return result[0].histogram;
+    throw new Error(
+        `Invalid histogram response for channel candidates [${candidates.join(", ")}]`
+    );
 }
 
 
@@ -84,7 +120,7 @@ async function readRedHistogram() {
 
 async function readGreenHistogram() {
 
-    return await readChannelHistogram("grn");
+    return await readChannelHistogram(["green", "grn"]);
 
 }
 
@@ -95,7 +131,7 @@ async function readGreenHistogram() {
 
 async function readBlueHistogram() {
 
-    return await readChannelHistogram("bl ");
+    return await readChannelHistogram(["blue", "bl "]);
 
 }
 

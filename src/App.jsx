@@ -16,6 +16,9 @@ import {
 import {
   readFaceData
 } from "./utils/utilities.js";
+import {
+    get as getSettings
+} from "./utils/settingsStore.js";
 import { runColourCorrectionWorkflow } from "./workflow/colourCorrectionWorkflow.js";
 
 export class CorrectionWorkflow {
@@ -286,32 +289,37 @@ export class CorrectionWorkflow {
       // 3. LIGHT CORRECTION WORKFLOW
       // =================================================
 
-      // console.log(
-      //   "💡 Running Light Correction Workflow..."
-      // );
+      console.log(
+        "💡 Running Light Correction Workflow..."
+      );
 
 
-      // const lightResult =
-      //   await runLightCorrectionWorkflow(
-      //     this.currentImageName,
-      //     this.folder,
-      //     this.faceData
-      //   );
+      const lightResult =
+        await runLightCorrectionWorkflow(
+          this.currentImageName,
+          this.folder,
+          this.faceData,
+          // =============================================
+          // USER SETTINGS (panel sliders)
+          // =============================================
+
+          getSettings().brightnessTarget
+        );
 
       console.log(
         "💡 Running Colour Correction Workflow..."
       );
 
 
-      const colourResult =
-        await runColourCorrectionWorkflow(
-          this.currentImageName,
-          this.folder,
-          this.faceData
-        );
+      // const colourResult =
+      //   await runColourCorrectionWorkflow(
+      //     this.currentImageName,
+      //     this.folder,
+      //     this.faceData
+      //   );
       this.currentResult = {
-        // light: lightResult,
-        colour: colourResult
+        light: lightResult,
+        // colour: colourResult
       };
 
 

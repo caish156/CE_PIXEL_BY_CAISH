@@ -1,0 +1,33 @@
+[
+  {
+    "timestamp": "2026-09-16T20:43:01.560Z",
+    "image": "DSC_0338.JPG",
+    "input": {
+      "image": "DSC_0338.JPG",
+      "total_pixels": 16084992,
+      "avg_brightness": 115.71,
+      "histogram": [234102, 118210, 55631],
+      "histogram_zones": {
+        "dark_0_50": 3482329,
+        "mid_51_150": 7570094,
+        "bright_151_200": 2445553,
+        "highlight_201_255": 2386188
+      },
+      "has_face": true,
+      "face_count": 1,
+      "faces": [
+        {
+          "luminance": 85.5,
+          "rgb": { "b": 59, "g": 72, "r": 122 },
+          "bbox": { "x": 797, "y": 1046, "width": 119, "height": 145 },
+          "confidence": 87.9
+        }
+      ]
+    },
+    "predictedLevels": {
+      "shadow": 6.47,
+      "midpoint": 1.38,
+      "highlight": 216.37
+    }
+  }
+]

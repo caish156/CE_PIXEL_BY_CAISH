@@ -32,7 +32,7 @@
 :root {
     --ce-blue: #1769ff;
     --ce-blue-dark: #0d4fd8;
-    --ce-white: #ffffff;
+    --ce-white: #0f0f0f;
     --ce-black: #000000;
     --ce-border: #d9d9d9;
     --ce-light: #f5f5f5;
@@ -687,6 +687,449 @@
     font-size: 12px;
 
     color: var(--muted);
+/* =========================================================
+   CARDS (Presets / Brightness / Skin Tone)
+   ========================================================= */
+
+.ce-card {
+    border: 1px solid var(--ce-black);
+    background: var(--ce-white);
+    padding: 12px;
+}
+
+.ce-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.ce-card-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+}
+
+.ce-card-value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ce-blue);
+    min-width: 28px;
+    text-align: right;
+}
+
+.ce-card-value-sm {
+    font-size: 12px;
+}
+
+.ce-help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    margin-left: 6px;
+    border: 1px solid var(--ce-black);
+    border-radius: 50%;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: help;
+    vertical-align: middle;
+}
+
+
+/* =========================================================
+   PRESETS
+   ========================================================= */
+
+.ce-preset-row {
+    display: flex;
+    gap: 8px;
+}
+
+.ce-preset-row-second {
+    margin-top: 8px;
+}
+
+.ce-preset-select {
+    flex: 1 1 auto;
+    height: 34px;
+    border: 1px solid var(--ce-black);
+    background: var(--ce-white);
+    color: var(--ce-black);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 0 8px;
+    cursor: pointer;
+}
+
+.ce-preset-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 32px;
+    border: 1px solid var(--ce-border);
+    background: var(--ce-white);
+    color: var(--ce-black);
+    font-size: 12px;
+    padding: 0 8px;
+    outline: none;
+}
+
+.ce-preset-name:focus {
+    border-color: var(--ce-blue);
+}
+
+.ce-mini-btn {
+    flex: 0 0 auto;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--ce-black);
+    background: var(--ce-white);
+    color: var(--ce-black);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    cursor: pointer;
+}
+
+.ce-mini-btn:hover {
+    background: var(--ce-black);
+    color: var(--ce-white);
+}
+
+.ce-mini-btn-danger:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+/* =========================================================
+   BRIGHTNESS SLIDER
+   ========================================================= */
+
+.ce-bright-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ce-step-btn {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--ce-black);
+    background: var(--ce-white);
+    color: var(--ce-black);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ce-step-btn:hover {
+    background: var(--ce-black);
+    color: var(--ce-white);
+}
+
+.ce-slider-dark {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 4px;
+    background: var(--ce-black);
+    outline: none;
+    cursor: pointer;
+.ce-slider-dark::-webkit-slider-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--ce-white);
+    border: 2px solid var(--ce-blue);
+    cursor: pointer;
+}
+
+.ce-slider-dark::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--ce-white);
+    border: 2px solid var(--ce-blue);
+    cursor: pointer;
+}
+
+}
+
+.ce-slider-dark:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* =========================================================
+   COLOR STRIPS (gradient backgrounds for sliders)
+   ========================================================= */
+
+.ce-strip {
+    margin-top: 6px;
+    height: 8px;
+    border: 1px solid var(--ce-black);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.ce-strip-brightness {
+    background: linear-gradient(90deg, #000000, #8a8a8a 45%, #d9d9d9 70%, #ffffff);
+}
+
+.ce-strip-hue {
+    /* Skin-tone oriented hue gradient: 10 to 50 */
+    background: linear-gradient(90deg, 
+        #c97f4e 0%, 
+        #d99a6c 20%, 
+        #e8b48a 35%, 
+        #f0c8a0 50%, 
+        #e8c39a 65%, 
+        #d4a574 80%, 
+        #c48a5a 100%);
+}
+
+.ce-strip-saturation {
+    /* Saturation gradient: 0 to 40 */
+    background: linear-gradient(90deg, 
+        #e8dcc8 0%, 
+        #d4b896 25%, 
+        #c98a5a 50%, 
+        #a85a28 75%, 
+        #8a3e1a 100%);
+}
+
+.ce-strip-lightness {
+    /* Lightness gradient: 50 to 90 - dark to light skin tones */
+    background: linear-gradient(90deg, 
+        #3a2a1a 0%, 
+        #5a3d24 15%, 
+        #8a5a34 30%, 
+        #c48a5a 45%, 
+        #e8b48a 60%, 
+        #f0d0a8 75%, 
+        #f5e8d0 90%, 
+        #faf5ec 100%);
+}
+
+.ce-ticks {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 4px;
+}
+
+.ce-tick {
+    font-size: 8px;
+    font-weight: 600;
+    color: #666666;
+    letter-spacing: 0.3px;
+}
+
+.ce-ticks-sm .ce-tick {
+    font-size: 9px;
+}
+
+
+/* =========================================================
+   SKIN TONE (Lab) — UI ONLY
+   ========================================================= */
+
+.ce-skin-body {
+    display: flex;
+    gap: 12px;
+}
+
+.ce-skin-controls {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.ce-skin-slider-group {
+    min-width: 0;
+}
+
+.ce-skin-slider-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.ce-skin-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}
+
+/* =========================================================
+   DUAL-HANDLE RANGE SLIDER (Skin Tone: Hue, Saturation, Lightness)
+   ========================================================= */
+
+.ce-dual-slider {
+    position: relative;
+    width: 100%;
+    height: 28px;
+    touch-action: none;
+    user-select: none;
+}
+
+.ce-dual-slider-track {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 6px;
+    transform: translateY(-50%);
+    border-radius: 3px;
+    background: var(--ce-black);
+    overflow: hidden;
+    display: none;
+}
+
+/* Legacy rules below are superseded by the appended UXP override block
+   ("SLIDER RENDER FIX"); they are left untouched so unrelated CSS
+   is not modified, and the later block wins by cascade order. */
+.ce-dual-slider-legacy-note {
+    display: none;
+}
+
+.ce-dual-slider-track-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 3px;
+}
+
+.ce-dual-slider-range {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 3px;
+    background: var(--ce-blue);
+    opacity: 0.6;
+}
+
+.ce-dual-slider-handle {
+    position: absolute;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--ce-white);
+    border: 2px solid var(--ce-blue);
+    cursor: grab;
+    z-index: 2;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Legacy untouched rules end here. The appended "SLIDER RENDER FIX (UXP)"
+   block below defines the active visual slider (plain DIV visuals +
+   opacity:0 interaction-only native inputs). */
+.ce-dual-slider-handle:active {
+    cursor: grabbing;
+    border-color: var(--ce-blue-dark);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.ce-dual-slider-ticks {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding: 0 1px;
+}
+
+.ce-dual-slider-tick {
+    font-size: 9px;
+    font-weight: 600;
+    color: #666666;
+    letter-spacing: 0.3px;
+    text-align: center;
+}
+
+/* Legacy untouched rule (unused by current JSX, which uses .ce-dual-input). */
+.ce-dual-slider-input {
+    position: absolute;
+    width: 100%;
+    height: 28px;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.ce-skin-preview-label {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.ce-skin-preview-box {
+    width: 64px;
+    height: 64px;
+    border: 1px solid var(--ce-black);
+    border-radius: 4px;
+}
+
+.ce-skin-preview-caption {
+    margin-top: 6px;
+    font-size: 8px;
+    color: #666666;
+    line-height: 1.4;
+}
+
+.ce-skin-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--ce-border);
+}
+
+.ce-edit-btn {
+    padding: 5px 16px;
+    border: 1px solid var(--ce-black);
+    border-radius: 20px;
+    background: var(--ce-white);
+    color: var(--ce-black);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+}
+
+.ce-edit-btn-active {
+    background: var(--ce-blue);
+    border-color: var(--ce-blue);
+    color: var(--ce-white);
+}
+
+.ce-share-btn {
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--ce-black);
+    border-radius: 4px;
+    background: var(--ce-white);
+    color: var(--ce-black);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.ce-share-btn:hover {
+    background: var(--ce-black);
+    color: var(--ce-white);
+}
+
+
 }
 
 
@@ -997,3 +1440,487 @@
 .ce-app::-webkit-scrollbar-thumb:hover {
     background: var(--blue-dark);
 }
+
+
+/* =========================================================
+   BRIGHTNESS TARGET SLIDER
+   ========================================================= */
+
+.ce-brightness-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ce-slider {
+    flex: 1 1 auto;
+    height: 26px;
+    margin: 0;
+    padding: 0;
+}
+
+.ce-slider-value {
+    flex: 0 0 auto;
+    min-width: 46px;
+
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+
+    border: 1px solid var(--ce-black);
+    padding: 4px 6px;
+}
+
+.ce-slider-scale {
+    display: flex;
+    justify-content: space-between;
+
+    margin-top: 2px;
+
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    color: #666666;
+}
+
+.ce-slider-hint {
+    margin-top: 7px;
+
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--ce-blue);
+}
+
+/* =========================================================
+   SLIDER RENDER FIX (UXP) — full-width tracks, stacked dual inputs
+   Appended as overrides; no existing rules touched.
+   ========================================================= */
+
+.ce-bright-row {
+    width: 100%;
+}
+
+.ce-bright-row .ce-slider-dark {
+    flex: 1 1 0%;
+    width: 100%;
+    max-width: 100%;
+}
+
+.ce-ticks {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ce-skin-body {
+    width: 100%;
+}
+
+.ce-skin-body .ce-skin-controls {
+    flex: 1 1 0%;
+    width: 100%;
+    min-width: 0;
+}
+
+.ce-skin-slider-group {
+    width: 100%;
+    min-width: 0;
+}
+
+.ce-dual-slider {
+    width: 100%;
+    height: 28px;
+}
+
+.ce-dual-slider-track-bg {
+    border: 1px solid var(--ce-black);
+    box-sizing: border-box;
+    opacity: 1;
+}
+
+.ce-dual-slider-dim {
+    display: none;
+}
+
+/* Selected range between the two handles: subtle light highlight only.
+   The underlying gradient must remain clearly visible. */
+.ce-dual-slider-range {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    box-sizing: border-box;
+    opacity: 1;
+    z-index: 2;
+}
+
+/* Custom visual-only handles. Native inputs stay invisible and interactive. */
+.ce-dual-slider-handle {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 20px;
+    background: #eeeeee;
+    border: 1px solid #777;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    box-sizing: border-box;
+    opacity: 1;
+    z-index: 3;
+}
+
+/* Two native range inputs: interaction-only, fully invisible.
+   Do NOT style their track/thumb — the visual slider is plain DIVs. */
+.ce-dual-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    opacity: 0;
+    z-index: 5;
+}
+
+.ce-dual-input-max {
+    z-index: 6;
+}
+
+.ce-dual-slider-ticks {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+
+/* =========================================================
+   HSL COLOR SLIDER VISUALS — Task 1
+   ONE gradient bar + TWO visual handles + inactive control buttons.
+   No native range inputs, no track/thumb pseudo-elements here.
+   ========================================================= */
+
+.ce-color-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ce-color-btns {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+}
+
+.ce-color-btn {
+    width: 18px;
+    height: 18px;
+    margin: 0 2px;
+    padding: 0;
+    background: var(--ce-white);
+    color: var(--ce-black);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    border: 1px solid var(--ce-border);
+    border-radius: 3px;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.ce-color-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.ce-color-gradient {
+    position: relative;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    height: 12px;
+    border: 1px solid var(--ce-black);
+    border-radius: 6px;
+    box-sizing: border-box;
+    opacity: 1;
+    overflow: visible;
+    background-color: transparent;
+}
+
+.ce-range-handle {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 26px;
+    margin-left: -2px;
+    background: #eeeeee;
+    border-radius: 2px;
+    box-sizing: border-box;
+    opacity: 1;
+    z-index: 1;
+}
+
+/* Retired dual-input implementation: no HSL JSX uses these selectors now.
+   Neutralize them so no legacy track/handle can paint over the gradient. */
+.ce-dual-slider,
+.ce-dual-slider-track,
+.ce-dual-slider-track-bg,
+.ce-dual-slider-range,
+.ce-dual-slider-handle,
+.ce-dual-input,
+.ce-dual-input-max {
+    display: none;
+}
+
+/* Brightness visual-only override: keep grey inactive track, blue active
+   portion handled by JS var; no extra dimming layer. */
+.ce-bright-row .ce-slider-dark {
+    opacity: 1;
+}
+
+.ce-bright-row .ce-slider-dark::-webkit-slider-thumb {
+    background: #ffffff;
+    border: 2px solid #26303a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+    opacity: 1;
+}
+
+.ce-bright-row .ce-slider-dark::-moz-range-thumb {
+    background: #ffffff;
+    border: 2px solid #26303a;
+    opacity: 1;
+}
+
+
+
+/* =========================================================
+   UNIFIED CONTROL PANEL (Task 6)
+   ========================================================= */
+
+.ce-control-panel {
+    border: 1px solid var(--ce-black);
+    background: var(--ce-white);
+    padding: 12px;
+}
+
+.ce-control-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.ce-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    font-family: "Rajdhani", "Segoe UI", sans-serif;
+}
+
+.ce-divider {
+    height: 1px;
+    background: var(--ce-border);
+    margin: 14px 0;
+}
+
+/* Compact preset row - single line */
+
+.ce-preset-compact-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 0;
+}
+
+.ce-preset-select {
+    flex: 1 1 120px;
+    height: 30px;
+    border: 1px solid var(--ce-black);
+    background: var(--ce-white);
+    color: var(--ce-black);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0 6px;
+    cursor: pointer;
+}
+
+.ce-preset-name {
+    flex: 1 1 100px;
+    min-width: 0;
+    height: 30px;
+    border: 1px solid var(--ce-border);
+    background: var(--ce-white);
+    color: var(--ce-black);
+    font-size: 11px;
+    padding: 0 6px;
+    outline: none;
+}
+
+.ce-preset-name:focus {
+    border-color: var(--ce-blue);
+}
+
+.ce-mini-btn {
+    flex: 0 0 auto;
+    height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--ce-black);
+    background: var(--ce-white);
+    color: var(--ce-black);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+}
+
+.ce-mini-btn:hover {
+    background: var(--ce-black);
+    color: var(--ce-white);
+}
+
+.ce-mini-btn-danger:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+/* Larger card value for important numbers */
+
+.ce-card-value-lg {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ce-blue);
+    min-width: 40px;
+    text-align: right;
+}
+
+/* Brightness row with both buttons on left */
+
+.ce-bright-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ce-step-btn {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--ce-black);
+    background: var(--ce-white);
+    color: var(--ce-black);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ce-step-btn:hover {
+    background: var(--ce-black);
+    color: var(--ce-white);
+}
+
+.ce-slider-dark {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 4px;
+    background: var(--ce-black);
+    outline: none;
+    cursor: pointer;
+}
+
+.ce-slider-dark::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--ce-white);
+    border: 2px solid var(--ce-blue);
+    cursor: pointer;
+}
+
+.ce-slider-dark::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--ce-white);
+    border: 2px solid var(--ce-blue);
+    cursor: pointer;
+}
+
+.ce-slider-dark:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* HSL color row layout */
+
+.ce-color-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ce-color-btns {
+    display: flex;
+    gap: 3px;
+}
+
+.ce-color-btn {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--ce-black);
+    background: var(--ce-white);
+    color: var(--ce-black);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ce-color-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.ce-color-btn:disabled:hover {
+    background: var(--ce-white);
+    color: var(--ce-black);
+}
+
+.ce-color-gradient {
+    flex: 1 1 auto;
+    min-width: 0;
+    position: relative;
+    height: 10px;
+    border: 1px solid var(--ce-black);
+    border-radius: 2px;
+    opacity: 1;
+}
+
+.ce-range-handle {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    height: 22px;
+    background: #eeeeee;
+    border: 1px solid #777;
+    border-radius: 2px;
+    z-index: 3;
+}
+
+.ce-range-handle.min {
+    z-index: 4;
+}
+
+/* Remove old card styles that are no longer used */
+
+.ce-card {
+    display: none;
+}
+
+.ce-card-header {
+    display: none;
+}
+

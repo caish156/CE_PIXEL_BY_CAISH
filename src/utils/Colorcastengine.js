@@ -24,19 +24,25 @@
 const DEFAULT_CONFIG = {
   // face validity filter
   LUM_MIN: 90,
-  LUM_MAX: 190,
+  LUM_MAX: 180,
   CONF_MIN: 75,
 
   // natural skin tone ratio locus (R/G, R/B, G/B) — YOU decide these
-  SKIN_RG_MIN: 1.15, SKIN_RG_MAX: 1.65,
-  SKIN_RB_MIN: 1.25, SKIN_RB_MAX: 2.30,
-  SKIN_GB_MIN: 1.00, SKIN_GB_MAX: 1.40,
+  SKIN_RG_MIN: 1.25, SKIN_RG_MAX: 1.55,
+  SKIN_RB_MIN: 1.50, SKIN_RB_MAX: 2.00,
+  SKIN_GB_MIN: 1.10, SKIN_GB_MAX: 1.20,
 
   // deviation below this = "already natural", cast% forced to 0
   NATURAL_EPSILON: 0.03,
 
   // if no valid face is found at all, what cast% to fall back to
   NO_FACE_FALLBACK_PERCENT: 100,
+
+  // correction window: applied cast% is CLAMPED to [MIN, MAX]:
+  //   raw <= MIN -> MIN  (e.g. 0% -> 15% minimum correction)
+  //   raw >= MAX -> MAX  (e.g. 100% -> 85% maximum correction)
+  CAST_PERCENT_MIN: 15,
+  CAST_PERCENT_MAX: 85,
 };
 
 /** Merge user config on top of defaults (shallow). */
@@ -197,9 +203,29 @@ function getCorrectionFactors(result) {
   };
 }
 
+/**
+ * WINDOW: raw cast% (0-100) ko [CAST_PERCENT_MIN, CAST_PERCENT_MAX]
+ * me CLAMP karta hai:
+ *
+ *   raw 0%   -> MIN (15%)   minimum correction hamesha lagti hai
+ *   raw 100% -> MAX (85%)   full raw grey-world kabhi nahi lagti
+ *   15-85 ke beech -> jaisa hai waisa hi
+ *
+ * e.g. MIN=15, MAX=85:  raw 0% -> 15% | raw 50% -> 50% | raw 100% -> 85%
+ *
+ * @param {number} rawPercent - engine ka raw cast % (0-100)
+ * @param {object} config - optional overrides (CAST_PERCENT_MIN / CAST_PERCENT_MAX)
+ * @returns {number} applied percent (15-85)
+ */
+function getAppliedCastPercent(rawPercent, config) {
+  const cfg = resolveConfig(config);
+  return Math.min(cfg.CAST_PERCENT_MAX, Math.max(cfg.CAST_PERCENT_MIN, rawPercent));
+}
+
 module.exports = {
   getColorCastPercent,
   getCorrectionFactors,
+  getAppliedCastPercent,
   getValidFaces,
   getWeightedSkinTone,
   skinDeviation,

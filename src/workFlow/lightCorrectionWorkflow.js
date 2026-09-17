@@ -54,6 +54,13 @@ const {
 } = require("../batchplays/actionPlay");
 
 
+const {
+  adjustGammaForBrightness,
+  clampBrightnessTarget,
+  REFERENCE_MEAN_BRIGHTNESS
+} = require("../utils/brightnessMath");
+
+
 // ============================================================
 // MAIN WORKFLOW
 // ============================================================
@@ -61,7 +68,8 @@ const {
 async function runLightCorrectionWorkflow(
   imageName = "",
   imageFolder = null,
-  faceData = null
+  faceData = null,
+  brightnessTarget = REFERENCE_MEAN_BRIGHTNESS
 ) {
 
   console.log("");
@@ -112,20 +120,20 @@ async function runLightCorrectionWorkflow(
   // 3. ACTION CALL
   // ==========================================================
 
-  console.log(
-    "⚡ Running light correction action..."
-  );
+  // console.log(
+  //   "⚡ Running light correction action..."
+  // );
 
 
-  await runAction(
-    "CE_001",
-    "CORRECTION ENGINE SET"
-  );
+  // await runAction(
+  //   "CE_001",
+  //   "CORRECTION ENGINE SET"
+  // );
 
 
-  console.log(
-    "✅ Action complete."
-  );
+  // console.log(
+  //   "✅ Action complete."
+  // );
 
 
   // ==========================================================
@@ -250,6 +258,43 @@ async function runLightCorrectionWorkflow(
 
 
   // ==========================================================
+  // 6b. BRIGHTNESS TARGET — USER SLIDER
+  // ==========================================================
+  //
+  // predictLevels model mean brightness ~146 pe laata hai.
+  // Panel slider se user apna target choose karta hai:
+  //
+  //   UI delta scale: 0 = 146 | -1 = 143 | +1 = 149 | ±5 = 146±15
+  //
+  //   target 146 -> gamma unchanged (default behaviour)
+  //   target >146 -> gamma bada -> image brighter
+  //   target <146 -> gamma chhota -> image darker
+  //
+  // gamma' = gamma * ln(146/255) / ln(target/255)
+  //
+
+  const targetBrightness =
+    clampBrightnessTarget(brightnessTarget);
+
+  const gammaApplied =
+    adjustGammaForBrightness(midpoint, targetBrightness);
+
+
+  if (Math.abs(gammaApplied - midpoint) > 0.001) {
+
+    console.log(
+      `🎚️ Brightness target ${targetBrightness} (default ${REFERENCE_MEAN_BRIGHTNESS}): gamma ${midpoint.toFixed(3)} -> ${gammaApplied.toFixed(3)}`
+    );
+
+  } else {
+
+    console.log(
+      `🎚️ Brightness target ${targetBrightness} = default, gamma unchanged`
+    );
+  }
+
+
+  // ==========================================================
   // 8. SAVE LIGHT CORRECTION DATA
   // ==========================================================
 
@@ -271,9 +316,16 @@ async function runLightCorrectionWorkflow(
 
         shadow,
 
+        // model ka predicted gamma (146 target ke liye)
         midpoint,
 
-        highlight
+        highlight,
+
+        // user slider settings
+        brightnessTarget: targetBrightness,
+
+        // slider ke hisaab se adjusted gamma jo actually apply hua
+        gammaApplied
       }
     }
   );
@@ -288,9 +340,18 @@ async function runLightCorrectionWorkflow(
   );
 
 
+  console.log(
+    JSON.stringify({
+      shadow,
+      gamma: gammaApplied,
+      highlight
+    })
+  );
+
+
   await applyLevelsAdjustment(
     shadow,
-    midpoint,
+    gammaApplied,
     highlight
   );
 
@@ -310,9 +371,16 @@ async function runLightCorrectionWorkflow(
 
       shadow,
 
+      // model prediction (default 146 target)
       midpoint,
 
-      highlight
+      highlight,
+
+      // user brightness target (130-160)
+      brightnessTarget: targetBrightness,
+
+      // gamma jo actually apply hua
+      gammaApplied
     }
   };
 

@@ -64,38 +64,38 @@ async function applyCurvesAdjustment(points) {
 // ==========================================
 
 /**
- * Photoshop ke batchPlay descriptor engine me channel enum values FIXED hote hain.
- * User-friendly names ko exact descriptor values pe map karte hain:
+ * Channel enum candidates for the batchPlay descriptor engine.
  *
- *   "red"       -> "red"
- *   "green"     -> "grn"       (descriptor value "green" NAHI hota!)
- *   "blue"      -> "bl "       (trailing space MANDATORY hai, warna batchPlay fail hota hai)
- *   "gray"      -> "gray"
- *   "composite" -> "composite" (RGB document ka combined curve)
+ * Photoshop builds me channel enum values alag hote hain:
+ *   - Kuch builds full words accept karte hain: "red" | "green" | "blue" | "gray" | "composite"
+ *   - Kuch builds short codes:                  "red" | "grn"  | "bl "  | "gray" | "composite"
+ *
+ * Isliye har channel ke liye candidate list hai — pehla jo Photoshop
+ * accept kare wahi use hota hai (applyChannelCurves khud fallback karta hai).
  */
 const CHANNEL_ENUM_MAP = {
-    red: "red",
-    green: "grn",
-    blue: "bl ",
-    gray: "gray",
-    composite: "composite"
+    red: ["red"],
+    green: ["green", "grn"],
+    blue: ["blue", "bl "],
+    gray: ["gray"],
+    composite: ["composite"]
 };
 
 /**
- * Converts a user-friendly channel name to the exact Photoshop descriptor enum value.
+ * Converts a user-friendly channel name to Photoshop descriptor enum candidates.
  * @param {string} channel - "red" | "green" | "blue" | "gray" | "composite" (case-insensitive)
- * @returns {string} Descriptor enum value for the `channel` _enum
+ * @returns {string[]} Candidate enum values (first one accepted by Photoshop wins)
  * @throws {Error} If the channel name is not supported
  */
 function resolveChannelEnum(channel) {
     const key = String(channel ?? "").trim().toLowerCase();
-    const enumValue = CHANNEL_ENUM_MAP[key];
-    if (!enumValue) {
+    const candidates = CHANNEL_ENUM_MAP[key];
+    if (!candidates) {
         throw new Error(
             `Invalid channel "${channel}". Allowed values: ${Object.keys(CHANNEL_ENUM_MAP).join(", ")}`
         );
     }
-    return enumValue;
+    return candidates;
 }
 
 /**
@@ -127,7 +127,7 @@ function sanitizeCurvePoints(points) {
  * @returns {Promise<void>}
  */
 async function applyChannelCurves(channel, points) {
-    const enumValue = resolveChannelEnum(channel);
+    const enumCandidates = resolveChannelEnum(channel);
     const safePoints = sanitizeCurvePoints(points);
 
     const formattedPoints = safePoints.map(pt => ({
@@ -136,33 +136,50 @@ async function applyChannelCurves(channel, points) {
         vertical: pt[1]
     }));
 
-    await executeAsModal(
-        async () => {
-            await batchPlay(
-                [
-                    {
-                        _obj: "curves",
-                        presetKind: {
-                            _enum: "presetKindType",
-                            _value: "presetKindCustom"
-                        },
-                        adjustment: [
-                            {
-                                _obj: "curveEnum",
-                                channel: {
-                                    _ref: "channel",
-                                    _enum: "channel",
-                                    _value: enumValue
-                                },
-                                curve: formattedPoints
-                            }
-                        ]
-                    }
-                ],
-                { synchronousExecution: false }
-            );
+    const buildDescriptor = (enumValue) => ({
+        _obj: "curves",
+        presetKind: {
+            _enum: "presetKindType",
+            _value: "presetKindCustom"
         },
-        { "commandName": `Applying ${channel} Channel Curve` }
+        adjustment: [
+            {
+                _obj: "curveEnum",
+                channel: {
+                    _ref: "channel",
+                    _enum: "channel",
+                    _value: enumValue
+                },
+                curve: formattedPoints
+            }
+        ]
+    });
+
+    let lastError = null;
+
+    for (const enumValue of enumCandidates) {
+        try {
+            await executeAsModal(
+                async () => {
+                    await batchPlay(
+                        [buildDescriptor(enumValue)],
+                        { synchronousExecution: false, dialogOptions: "dontDisplay" }
+                    );
+                },
+                { "commandName": `Applying ${channel} Channel Curve` }
+            );
+            return; // is enum ke saath apply ho gaya
+        } catch (err) {
+            lastError = err;
+            console.warn(
+                `Curve apply failed with channel enum '${enumValue}':`,
+                err && err.message
+            );
+        }
+    }
+
+    throw new Error(
+        `Could not apply ${channel} channel curve (tried: ${enumCandidates.join(", ")}) — ${lastError && lastError.message}`
     );
 }
 

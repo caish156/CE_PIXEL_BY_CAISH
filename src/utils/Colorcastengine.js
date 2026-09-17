@@ -1,235 +1,971 @@
 /**
  * colorCastEngine.js
- * ---------------------------------------------------------------
- * Processes per-image analysis data (histograms + face data) and
- * returns a COLOR CAST % — a single control value that tells your
- * grey-world implementation how much correction to actually apply.
  *
- *   colorCastPercent = 0    -> don't touch color (theme/scene color,
- *                              e.g. haldi yellow, colored lighting)
- *   colorCastPercent = 100  -> apply full grey-world correction
- *   anything in between     -> blend proportionally
+ * 5-point colour correction:
  *
- * ALL thresholds (skin ratio locus, luminance range, confidence
- * cutoff) are passed in via `config`. Nothing is hardcoded inside
- * the logic — you fully control the direction/strength by changing
- * config values per shoot / per ceremony / per your own dataset.
- * ---------------------------------------------------------------
+ * 0   -> Shadow 0-10 Grey World, only if >=70% dominance
+ * 64  -> midpoint(Gray World, Skin Reference)
+ * 128 -> exact Skin Reference
+ * 192 -> midpoint(Gray World, Skin Reference)
+ * 255 -> Highlight 245-255 Grey World, only if >=70% dominance
+ *
+ * Skin Reference:
+ * H/S/L slider midpoint -> RGB
  */
 
-/**
- * Default config — override any/all of these when calling
- * getColorCastPercent(data, { ...yourOverrides }).
- */
+const INPUT_POINTS = [0, 64, 128, 192, 255];
+
 const DEFAULT_CONFIG = {
-  // face validity filter
   LUM_MIN: 90,
   LUM_MAX: 180,
   CONF_MIN: 75,
 
-  // natural skin tone ratio locus (R/G, R/B, G/B) — YOU decide these
-  SKIN_RG_MIN: 1.25, SKIN_RG_MAX: 1.55,
-  SKIN_RB_MIN: 1.50, SKIN_RB_MAX: 2.00,
-  SKIN_GB_MIN: 1.10, SKIN_GB_MAX: 1.20,
+  COLOR_TOLERANCE: 0.02,
 
-  // deviation below this = "already natural", cast% forced to 0
-  NATURAL_EPSILON: 0.03,
+  SHADOW_MIN: 0,
+  SHADOW_MAX: 10,
 
-  // if no valid face is found at all, what cast% to fall back to
-  NO_FACE_FALLBACK_PERCENT: 100,
+  HIGHLIGHT_MIN: 245,
+  HIGHLIGHT_MAX: 255,
 
-  // correction window: applied cast% is CLAMPED to [MIN, MAX]:
-  //   raw <= MIN -> MIN  (e.g. 0% -> 15% minimum correction)
-  //   raw >= MAX -> MAX  (e.g. 100% -> 85% maximum correction)
-  CAST_PERCENT_MIN: 15,
-  CAST_PERCENT_MAX: 85,
+  DOMINANCE_THRESHOLD: 0.70,
+
+  // Minimum ratio difference required
+  // for a channel to be considered dominant.
+  DOMINANCE_RATIO: 1.05
 };
 
-/** Merge user config on top of defaults (shallow). */
-function resolveConfig(userConfig) {
-  return Object.assign({}, DEFAULT_CONFIG, userConfig || {});
+
+// -------------------------------------------------------------
+// BASIC
+// -------------------------------------------------------------
+
+function clamp(value, min = 0, max = 255) {
+  return Math.max(min, Math.min(max, value));
 }
 
-/**
- * Compute channel average from a 256-bin histogram, if avg_* isn't
- * already provided in the data (fallback path).
- */
-function avgFromHistogram(hist) {
-  let sum = 0, count = 0;
+
+function identityCurve() {
+  return INPUT_POINTS.map(input => ({
+    input,
+    output: input
+  }));
+}
+
+
+// -------------------------------------------------------------
+// HISTOGRAM
+// -------------------------------------------------------------
+
+function histogramTotal(hist) {
+  if (!Array.isArray(hist)) return 0;
+
+  let total = 0;
+
   for (let i = 0; i < hist.length; i++) {
-    sum += i * hist[i];
-    count += hist[i];
+    total += hist[i] || 0;
   }
+
+  return total;
+}
+
+
+function histogramPercentile(hist, percentile) {
+  if (!Array.isArray(hist) || hist.length === 0) {
+    return 0;
+  }
+
+  const total = histogramTotal(hist);
+
+  if (total <= 0) return 0;
+
+  const target = total * percentile;
+
+  let cumulative = 0;
+
+  for (let i = 0; i < hist.length; i++) {
+    cumulative += hist[i] || 0;
+
+    if (cumulative >= target) {
+      return i;
+    }
+  }
+
+  return hist.length - 1;
+}
+
+
+function getHistogramRange(hist) {
+  return {
+    black: histogramPercentile(hist, 0.005),
+    white: histogramPercentile(hist, 0.995)
+  };
+}
+
+
+// -------------------------------------------------------------
+// IMAGE AVERAGES
+// -------------------------------------------------------------
+
+function avgFromHistogram(hist) {
+  if (!Array.isArray(hist)) return 0;
+
+  let sum = 0;
+  let count = 0;
+
+  for (let i = 0; i < hist.length; i++) {
+    const value = hist[i] || 0;
+
+    sum += i * value;
+    count += value;
+  }
+
   return count > 0 ? sum / count : 0;
 }
 
-/** Resolve avg_r/avg_g/avg_b from data, computing from histograms if needed. */
+
 function getChannelAverages(data) {
-  const avg_r = typeof data.avg_r === 'number' ? data.avg_r : avgFromHistogram(data.histogram_r);
-  const avg_g = typeof data.avg_g === 'number' ? data.avg_g : avgFromHistogram(data.histogram_g);
-  const avg_b = typeof data.avg_b === 'number' ? data.avg_b : avgFromHistogram(data.histogram_b);
-  return { avg_r, avg_g, avg_b };
+  return {
+    r:
+      typeof data.avg_r === "number"
+        ? data.avg_r
+        : avgFromHistogram(data.histogram_r),
+
+    g:
+      typeof data.avg_g === "number"
+        ? data.avg_g
+        : avgFromHistogram(data.histogram_g),
+
+    b:
+      typeof data.avg_b === "number"
+        ? data.avg_b
+        : avgFromHistogram(data.histogram_b)
+  };
 }
 
-/** Step 1: keep only well-lit, high-confidence faces. */
+
+// -------------------------------------------------------------
+// FACE DATA
+// -------------------------------------------------------------
+
 function getValidFaces(faces, cfg) {
-  return (faces || []).filter(f =>
-    f.luminance >= cfg.LUM_MIN &&
-    f.luminance <= cfg.LUM_MAX &&
-    f.confidence >= cfg.CONF_MIN
+  return (faces || []).filter(face =>
+    face &&
+    face.rgb &&
+    face.luminance >= cfg.LUM_MIN &&
+    face.luminance <= cfg.LUM_MAX &&
+    face.confidence >= cfg.CONF_MIN
   );
 }
 
-/** Step 2: confidence-weighted average skin RGB across valid faces. */
-function getWeightedSkinTone(validFaces) {
-  let totalWeight = 0, r = 0, g = 0, b = 0;
-  validFaces.forEach(f => {
-    const w = f.confidence;
-    r += f.rgb.r * w;
-    g += f.rgb.g * w;
-    b += f.rgb.b * w;
-    totalWeight += w;
+
+function getWeightedFaceRGB(faces) {
+  let totalWeight = 0;
+
+  let r = 0;
+  let g = 0;
+  let b = 0;
+
+  for (const face of faces) {
+    const weight = face.confidence;
+
+    r += face.rgb.r * weight;
+    g += face.rgb.g * weight;
+    b += face.rgb.b * weight;
+
+    totalWeight += weight;
+  }
+
+  if (totalWeight <= 0) {
+    return null;
+  }
+
+  return {
+    r: r / totalWeight,
+    g: g / totalWeight,
+    b: b / totalWeight
+  };
+}
+
+
+// -------------------------------------------------------------
+// HSL -> RGB
+// -------------------------------------------------------------
+
+function hslToRgb({ h, s, l }) {
+  h = ((h % 360) + 360) % 360;
+
+  s /= 100;
+  l /= 100;
+
+  if (s === 0) {
+    const value = Math.round(l * 255);
+
+    return {
+      r: value,
+      g: value,
+      b: value
+    };
+  }
+
+  const hue2rgb = (p, q, t) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+
+    if (t < 1 / 6) {
+      return p + (q - p) * 6 * t;
+    }
+
+    if (t < 1 / 2) {
+      return q;
+    }
+
+    if (t < 2 / 3) {
+      return p + (q - p) * (2 / 3 - t) * 6;
+    }
+
+    return p;
+  };
+
+  const q =
+    l < 0.5
+      ? l * (1 + s)
+      : l + s - l * s;
+
+  const p = 2 * l - q;
+  const hk = h / 360;
+
+  return {
+    r: Math.round(hue2rgb(p, q, hk + 1 / 3) * 255),
+    g: Math.round(hue2rgb(p, q, hk) * 255),
+    b: Math.round(hue2rgb(p, q, hk - 1 / 3) * 255)
+  };
+}
+
+
+// -------------------------------------------------------------
+// SKIN REFERENCE
+// -------------------------------------------------------------
+
+function getSkinReferenceRGB(skinConfig) {
+  const h =
+    (skinConfig.hue.min + skinConfig.hue.max) / 2;
+
+  const s =
+    (skinConfig.saturation.min +
+      skinConfig.saturation.max) / 2;
+
+  const l =
+    (skinConfig.lightness.min +
+      skinConfig.lightness.max) / 2;
+
+  return hslToRgb({
+    h,
+    s,
+    l
   });
-  return { r: r / totalWeight, g: g / totalWeight, b: b / totalWeight };
 }
 
-/** Step 3: distance of a given RGB from the natural skin-tone locus (0 = inside locus). */
-function skinDeviation(rgb, cfg) {
-  const rg = rgb.r / rgb.g;
-  const rb = rgb.r / rgb.b;
-  const gb = rgb.g / rgb.b;
 
-  const devRG = rg < cfg.SKIN_RG_MIN ? cfg.SKIN_RG_MIN - rg
-              : rg > cfg.SKIN_RG_MAX ? rg - cfg.SKIN_RG_MAX : 0;
-  const devRB = rb < cfg.SKIN_RB_MIN ? cfg.SKIN_RB_MIN - rb
-              : rb > cfg.SKIN_RB_MAX ? rb - cfg.SKIN_RB_MAX : 0;
-  const devGB = gb < cfg.SKIN_GB_MIN ? cfg.SKIN_GB_MIN - gb
-              : gb > cfg.SKIN_GB_MAX ? gb - cfg.SKIN_GB_MAX : 0;
+// -------------------------------------------------------------
+// PURE GREY WORLD
+// -------------------------------------------------------------
 
-  return devRG + devRB + devGB;
+function getGreyWorldFactors(rgb) {
+  const r = Math.max(rgb.r, 0.000001);
+  const g = Math.max(rgb.g, 0.000001);
+  const b = Math.max(rgb.b, 0.000001);
+
+  return {
+    r: g / r,
+    g: 1,
+    b: g / b
+  };
 }
 
-/** Step 4: grey-world cast ratios, green channel as neutral reference. */
-function getGreyWorldCast(avg_r, avg_g, avg_b) {
-  return { castR: avg_r / avg_g, castB: avg_b / avg_g };
+
+// -------------------------------------------------------------
+// SKIN REFERENCE FACTORS
+// -------------------------------------------------------------
+
+function getSkinReferenceFactors(faceRGB, targetRGB) {
+  const faceG = Math.max(faceRGB.g, 0.000001);
+  const targetG = Math.max(targetRGB.g, 0.000001);
+
+  const currentRG = faceRGB.r / faceG;
+  const currentBG = faceRGB.b / faceG;
+
+  const targetRG = targetRGB.r / targetG;
+  const targetBG = targetRGB.b / targetG;
+
+  return {
+    r: targetRG / currentRG,
+    g: 1,
+    b: targetBG / currentBG
+  };
 }
 
-/** Step 5: hypothetical fully-corrected RGB if grey-world were fully applied. */
-function applyCorrection(rgb, castR, castB) {
-  return { r: rgb.r / castR, g: rgb.g, b: rgb.b / castB };
+
+// -------------------------------------------------------------
+// RGB SAMPLE ACCESS
+//
+// Expected:
+//
+// data.rgbSamples = [
+//   { r: 12, g: 8, b: 7 },
+//   { r: 10, g: 7, b: 6 },
+//   ...
+// ]
+//
+// Also accepts:
+// data.samples
+// data.pixels
+// -------------------------------------------------------------
+
+function getRGBSamples(data) {
+  if (Array.isArray(data.rgbSamples)) {
+    return data.rgbSamples;
+  }
+
+  if (Array.isArray(data.samples)) {
+    return data.samples;
+  }
+
+  if (Array.isArray(data.pixels)) {
+    return data.pixels;
+  }
+
+  return [];
 }
 
-/**
- * MAIN: returns the color cast % to drive your grey-world correction,
- * plus supporting numbers for debugging/logging.
- *
- * @param {object} data   - your per-image analysis JSON (histograms + faces)
- * @param {object} config - optional overrides for any DEFAULT_CONFIG key
- */
-function getColorCastPercent(data, config) {
-  const cfg = resolveConfig(config);
-  const { avg_r, avg_g, avg_b } = getChannelAverages(data);
-  const { castR, castB } = getGreyWorldCast(avg_r, avg_g, avg_b);
 
-  const validFaces = getValidFaces(data.faces, cfg);
+// -------------------------------------------------------------
+// TONAL SAMPLES
+// -------------------------------------------------------------
 
-  if (validFaces.length === 0) {
+function getTonalSamples(samples, min, max) {
+  return samples.filter(pixel => {
+    if (
+      !pixel ||
+      typeof pixel.r !== "number" ||
+      typeof pixel.g !== "number" ||
+      typeof pixel.b !== "number"
+    ) {
+      return false;
+    }
+
+    const luminance =
+      0.299 * pixel.r +
+      0.587 * pixel.g +
+      0.114 * pixel.b;
+
+    return luminance >= min && luminance <= max;
+  });
+}
+
+
+// -------------------------------------------------------------
+// DOMINANCE
+//
+// A pixel is considered:
+//
+// RED dominant:
+//   R/G >= threshold
+//   R/B >= threshold
+//
+// BLUE dominant:
+//   B/R >= threshold
+//   B/G >= threshold
+//
+// GREEN dominant:
+//   G/R >= threshold
+//   G/B >= threshold
+//
+// Then the same channel must dominate >=70%
+// of all samples in that tonal range.
+// -------------------------------------------------------------
+
+function getDominanceStats(samples, cfg) {
+  const total = samples.length;
+
+  if (!total) {
     return {
-      status: 'no_valid_face',
-      colorCastPercent: cfg.NO_FACE_FALLBACK_PERCENT,
-      castR, castB,
-      note: 'No face passed LUM_MIN/LUM_MAX/CONF_MIN filters — using NO_FACE_FALLBACK_PERCENT.',
+      dominant: null,
+      ratio: 0,
+      r: 0,
+      g: 0,
+      b: 0
     };
   }
 
-  const skin = getWeightedSkinTone(validFaces);
-  const devBefore = skinDeviation(skin, cfg);
+  let red = 0;
+  let green = 0;
+  let blue = 0;
 
-  // skin already inside your defined natural locus -> treat cast as theme color
-  if (devBefore <= cfg.NATURAL_EPSILON) {
-    return {
-      status: 'theme_color_likely',
-      colorCastPercent: 0,
-      validFaceCount: validFaces.length,
-      skinTone: skin,
-      castR, castB,
-      deviationBefore: devBefore,
-      note: 'Skin tone already within configured natural locus — cast% forced to 0.',
-    };
+  const threshold = cfg.DOMINANCE_RATIO;
+
+  for (const pixel of samples) {
+    const r = Math.max(pixel.r, 0.000001);
+    const g = Math.max(pixel.g, 0.000001);
+    const b = Math.max(pixel.b, 0.000001);
+
+    const redDominant =
+      r / g >= threshold &&
+      r / b >= threshold;
+
+    const greenDominant =
+      g / r >= threshold &&
+      g / b >= threshold;
+
+    const blueDominant =
+      b / r >= threshold &&
+      b / g >= threshold;
+
+    if (redDominant) {
+      red++;
+    } else if (greenDominant) {
+      green++;
+    } else if (blueDominant) {
+      blue++;
+    }
   }
 
-  // test whether grey-world correction actually pulls skin back toward natural
-  const correctedSkin = applyCorrection(skin, castR, castB);
-  const devAfter = skinDeviation(correctedSkin, cfg);
+  const redRatio = red / total;
+  const greenRatio = green / total;
+  const blueRatio = blue / total;
 
-  let colorCastPercent, status;
+  let dominant = null;
+  let ratio = 0;
 
-  if (devAfter < devBefore) {
-    const improvement = (devBefore - devAfter) / devBefore; // 0..1
-    colorCastPercent = Math.round(Math.min(1, Math.max(0, improvement)) * 100);
-    status = 'real_cast';
+  if (redRatio >= greenRatio && redRatio >= blueRatio) {
+    dominant = "r";
+    ratio = redRatio;
+  } else if (
+    greenRatio >= redRatio &&
+    greenRatio >= blueRatio
+  ) {
+    dominant = "g";
+    ratio = greenRatio;
   } else {
-    colorCastPercent = 0;
-    status = 'theme_color_likely';
+    dominant = "b";
+    ratio = blueRatio;
+  }
+
+  if (ratio < cfg.DOMINANCE_THRESHOLD) {
+    dominant = null;
   }
 
   return {
-    status,
-    colorCastPercent,
-    validFaceCount: validFaces.length,
-    skinTone: skin,
-    castR, castB,
-    deviationBefore: devBefore,
-    deviationAfter: devAfter,
-    note: status === 'real_cast'
-      ? `Correction improves skin naturalness by ${colorCastPercent}% -> applying that much of grey-world.`
-      : 'Correction does not improve skin naturalness -> treating as theme/scene color.',
+    dominant,
+    ratio,
+    r: redRatio,
+    g: greenRatio,
+    b: blueRatio
   };
 }
 
-/**
- * HELPER: turn colorCastPercent into actual per-channel multipliers
- * to plug into your grey-world / regression pipeline.
- *   pixel.R *= factorR
- *   pixel.G *= factorG   (always 1, green is the reference channel)
- *   pixel.B *= factorB
- */
-function getCorrectionFactors(result) {
-  const t = result.colorCastPercent / 100;
+
+// -------------------------------------------------------------
+// TONAL GREY WORLD
+//
+// Only active when one colour dominates >=70%
+// of the tonal samples.
+// -------------------------------------------------------------
+
+function getTonalGreyWorld(
+  samples,
+  min,
+  max,
+  cfg
+) {
+  const tonalSamples =
+    getTonalSamples(samples, min, max);
+
+  if (!tonalSamples.length) {
+    return {
+      active: false,
+      factors: {
+        r: 1,
+        g: 1,
+        b: 1
+      }
+    };
+  }
+
+  const dominance =
+    getDominanceStats(
+      tonalSamples,
+      cfg
+    );
+
+  if (!dominance.dominant) {
+    return {
+      active: false,
+      factors: {
+        r: 1,
+        g: 1,
+        b: 1
+      },
+      dominance
+    };
+  }
+
+  let r = 0;
+  let g = 0;
+  let b = 0;
+
+  for (const pixel of tonalSamples) {
+    r += pixel.r;
+    g += pixel.g;
+    b += pixel.b;
+  }
+
+  r /= tonalSamples.length;
+  g /= tonalSamples.length;
+  b /= tonalSamples.length;
+
   return {
-    factorR: 1 + (1 / result.castR - 1) * t,
-    factorG: 1,
-    factorB: 1 + (1 / result.castB - 1) * t,
+    active: true,
+
+    factors: getGreyWorldFactors({
+      r,
+      g,
+      b
+    }),
+
+    dominance,
+
+    sampleCount: tonalSamples.length
   };
 }
 
-/**
- * WINDOW: raw cast% (0-100) ko [CAST_PERCENT_MIN, CAST_PERCENT_MAX]
- * me CLAMP karta hai:
- *
- *   raw 0%   -> MIN (15%)   minimum correction hamesha lagti hai
- *   raw 100% -> MAX (85%)   full raw grey-world kabhi nahi lagti
- *   15-85 ke beech -> jaisa hai waisa hi
- *
- * e.g. MIN=15, MAX=85:  raw 0% -> 15% | raw 50% -> 50% | raw 100% -> 85%
- *
- * @param {number} rawPercent - engine ka raw cast % (0-100)
- * @param {object} config - optional overrides (CAST_PERCENT_MIN / CAST_PERCENT_MAX)
- * @returns {number} applied percent (15-85)
- */
-function getAppliedCastPercent(rawPercent, config) {
-  const cfg = resolveConfig(config);
-  return Math.min(cfg.CAST_PERCENT_MAX, Math.max(cfg.CAST_PERCENT_MIN, rawPercent));
+
+// -------------------------------------------------------------
+// FACTOR -> OUTPUT
+// -------------------------------------------------------------
+
+function applyFactor(value, factor) {
+  return clamp(
+    Math.round(value * factor)
+  );
 }
+
+
+// -------------------------------------------------------------
+// SHADOW / HIGHLIGHT ENDPOINT
+// -------------------------------------------------------------
+
+function getTonalEndpoint(
+  samples,
+  min,
+  max,
+  factor,
+  fallback,
+  cfg
+) {
+  const tonalSamples =
+    getTonalSamples(
+      samples,
+      min,
+      max
+    );
+
+  if (!tonalSamples.length) {
+    return fallback;
+  }
+
+  const tonalGreyWorld =
+    getTonalGreyWorld(
+      samples,
+      min,
+      max,
+      cfg
+    );
+
+  if (!tonalGreyWorld.active) {
+    return fallback;
+  }
+
+  const values = tonalSamples.map(
+    pixel =>
+      0.299 * pixel.r +
+      0.587 * pixel.g +
+      0.114 * pixel.b
+  );
+
+  const averageLuminance =
+    values.reduce(
+      (sum, value) => sum + value,
+      0
+    ) / values.length;
+
+  return applyFactor(
+    averageLuminance,
+    factor
+  );
+}
+
+
+// -------------------------------------------------------------
+// BUILD CHANNEL CURVE
+// -------------------------------------------------------------
+
+function buildChannelCurve({
+  samples,
+  histogram,
+  greyWorldFactor,
+  skinFactor,
+  channel,
+  cfg
+}) {
+  // -----------------------------------------------------------
+  // SHADOW
+  // -----------------------------------------------------------
+
+  const histogramRange =
+    getHistogramRange(histogram);
+
+  const shadowEndpoint =
+    getTonalEndpoint(
+      samples,
+      cfg.SHADOW_MIN,
+      cfg.SHADOW_MAX,
+      greyWorldFactor,
+      histogramRange.black,
+      cfg
+    );
+
+
+  // -----------------------------------------------------------
+  // 64
+  // -----------------------------------------------------------
+
+  const grey64 =
+    applyFactor(
+      64,
+      greyWorldFactor
+    );
+
+  const skin64 =
+    applyFactor(
+      64,
+      skinFactor
+    );
+
+  const point64 =
+    Math.round(
+      (grey64 + skin64) / 2
+    );
+
+
+  // -----------------------------------------------------------
+  // 128
+  // EXACT SKIN REFERENCE
+  // -----------------------------------------------------------
+
+  const point128 =
+    applyFactor(
+      128,
+      skinFactor
+    );
+
+
+  // -----------------------------------------------------------
+  // 192
+  // -----------------------------------------------------------
+
+  const grey192 =
+    applyFactor(
+      192,
+      greyWorldFactor
+    );
+
+  const skin192 =
+    applyFactor(
+      192,
+      skinFactor
+    );
+
+  const point192 =
+    Math.round(
+      (grey192 + skin192) / 2
+    );
+
+
+  // -----------------------------------------------------------
+  // HIGHLIGHT
+  // -----------------------------------------------------------
+
+  const highlightEndpoint =
+    getTonalEndpoint(
+      samples,
+      cfg.HIGHLIGHT_MIN,
+      cfg.HIGHLIGHT_MAX,
+      greyWorldFactor,
+      histogramRange.white,
+      cfg
+    );
+
+
+  return [
+    {
+      input: 0,
+      output: shadowEndpoint
+    },
+    {
+      input: 64,
+      output: clamp(point64)
+    },
+    {
+      input: 128,
+      output: clamp(point128)
+    },
+    {
+      input: 192,
+      output: clamp(point192)
+    },
+    {
+      input: 255,
+      output: highlightEndpoint
+    }
+  ];
+}
+
+
+// -------------------------------------------------------------
+// MAIN
+// -------------------------------------------------------------
+
+function generateColorCurves(
+  data,
+  skinConfig,
+  config = {}
+) {
+  const cfg = {
+    ...DEFAULT_CONFIG,
+    ...config
+  };
+
+
+  // -----------------------------------------------------------
+  // VALID FACES
+  // -----------------------------------------------------------
+
+  const validFaces =
+    getValidFaces(
+      data.faces,
+      cfg
+    );
+
+  if (!validFaces.length) {
+    return {
+      red: identityCurve(),
+      green: identityCurve(),
+      blue: identityCurve()
+    };
+  }
+
+
+  const faceRGB =
+    getWeightedFaceRGB(
+      validFaces
+    );
+
+  if (!faceRGB) {
+    return {
+      red: identityCurve(),
+      green: identityCurve(),
+      blue: identityCurve()
+    };
+  }
+
+
+  // -----------------------------------------------------------
+  // GLOBAL GREY WORLD
+  // -----------------------------------------------------------
+
+  const avgRGB =
+    getChannelAverages(data);
+
+  const greyWorld =
+    getGreyWorldFactors(
+      avgRGB
+    );
+
+
+  // -----------------------------------------------------------
+  // SKIN REFERENCE
+  // -----------------------------------------------------------
+
+  const skinReferenceRGB =
+    getSkinReferenceRGB(
+      skinConfig
+    );
+
+  const skinReference =
+    getSkinReferenceFactors(
+      faceRGB,
+      skinReferenceRGB
+    );
+
+
+  // -----------------------------------------------------------
+  // ACTUAL RGB SAMPLES
+  // -----------------------------------------------------------
+
+  const samples =
+    getRGBSamples(data);
+
+
+  // -----------------------------------------------------------
+  // TONAL GREY WORLD
+  // -----------------------------------------------------------
+
+  const shadowGreyWorld =
+    getTonalGreyWorld(
+      samples,
+      cfg.SHADOW_MIN,
+      cfg.SHADOW_MAX,
+      cfg
+    );
+
+  const highlightGreyWorld =
+    getTonalGreyWorld(
+      samples,
+      cfg.HIGHLIGHT_MIN,
+      cfg.HIGHLIGHT_MAX,
+      cfg
+    );
+
+
+  // -----------------------------------------------------------
+  // USE TONAL GREY WORLD ONLY IF 70% DOMINANCE PASSES
+  // OTHERWISE FALL BACK TO GLOBAL GREY WORLD
+  // -----------------------------------------------------------
+
+  const shadowFactorR =
+    shadowGreyWorld.active
+      ? shadowGreyWorld.factors.r
+      : greyWorld.r;
+
+  const shadowFactorG =
+    shadowGreyWorld.active
+      ? shadowGreyWorld.factors.g
+      : greyWorld.g;
+
+  const shadowFactorB =
+    shadowGreyWorld.active
+      ? shadowGreyWorld.factors.b
+      : greyWorld.b;
+
+
+  const highlightFactorR =
+    highlightGreyWorld.active
+      ? highlightGreyWorld.factors.r
+      : greyWorld.r;
+
+  const highlightFactorG =
+    highlightGreyWorld.active
+      ? highlightGreyWorld.factors.g
+      : greyWorld.g;
+
+  const highlightFactorB =
+    highlightGreyWorld.active
+      ? highlightGreyWorld.factors.b
+      : greyWorld.b;
+
+
+  // -----------------------------------------------------------
+  // CHANNEL CURVES
+  // -----------------------------------------------------------
+
+  const redCurve =
+    buildChannelCurve({
+      samples,
+      histogram: data.histogram_r,
+      greyWorldFactor: greyWorld.r,
+      skinFactor: skinReference.r,
+      channel: "r",
+      cfg
+    });
+
+
+  const greenCurve =
+    buildChannelCurve({
+      samples,
+      histogram: data.histogram_g,
+      greyWorldFactor: greyWorld.g,
+      skinFactor: skinReference.g,
+      channel: "g",
+      cfg
+    });
+
+
+  const blueCurve =
+    buildChannelCurve({
+      samples,
+      histogram: data.histogram_b,
+      greyWorldFactor: greyWorld.b,
+      skinFactor: skinReference.b,
+      channel: "b",
+      cfg
+    });
+
+
+  // -----------------------------------------------------------
+  // REPLACE ENDPOINTS WITH TONAL GREY WORLD
+  // -----------------------------------------------------------
+
+  if (shadowGreyWorld.active) {
+    redCurve[0].output =
+      applyFactor(
+        redCurve[0].output,
+        shadowFactorR / Math.max(greyWorld.r, 0.000001)
+      );
+
+    greenCurve[0].output =
+      applyFactor(
+        greenCurve[0].output,
+        shadowFactorG / Math.max(greyWorld.g, 0.000001)
+      );
+
+    blueCurve[0].output =
+      applyFactor(
+        blueCurve[0].output,
+        shadowFactorB / Math.max(greyWorld.b, 0.000001)
+      );
+  }
+
+
+  if (highlightGreyWorld.active) {
+    redCurve[4].output =
+      applyFactor(
+        redCurve[4].output,
+        highlightFactorR / Math.max(greyWorld.r, 0.000001)
+      );
+
+    greenCurve[4].output =
+      applyFactor(
+        greenCurve[4].output,
+        highlightFactorG / Math.max(greyWorld.g, 0.000001)
+      );
+
+    blueCurve[4].output =
+      applyFactor(
+        blueCurve[4].output,
+        highlightFactorB / Math.max(greyWorld.b, 0.000001)
+      );
+  }
+
+
+  return {
+    red: redCurve,
+    green: greenCurve,
+    blue: blueCurve
+  };
+}
+
 
 module.exports = {
-  getColorCastPercent,
-  getCorrectionFactors,
-  getAppliedCastPercent,
-  getValidFaces,
-  getWeightedSkinTone,
-  skinDeviation,
-  getGreyWorldCast,
-  getChannelAverages,
-  DEFAULT_CONFIG,
+  generateColorCurves
 };

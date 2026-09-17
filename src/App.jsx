@@ -310,16 +310,30 @@ export class CorrectionWorkflow {
         "💡 Running Colour Correction Workflow..."
       );
 
+      // Get HSL skin config + standard face from settings (correctionPanel)
+      const settings = getSettings();
 
-      // const colourResult =
-      //   await runColourCorrectionWorkflow(
-      //     this.currentImageName,
-      //     this.folder,
-      //     this.faceData
-      //   );
+      console.log(
+        "Passing HSL skin config to ColourCastEngine:",
+        settings.skinTone
+      );
+
+      console.log(
+        "Passing standard face reference to ColourCastEngine:",
+        settings.standardFace
+      );
+
+      const colourResult =
+        await runColourCorrectionWorkflow(
+          this.currentImageName,
+          this.folder,
+          this.faceData,
+          settings.skinTone,
+          settings.standardFace
+        );
       this.currentResult = {
         light: lightResult,
-        // colour: colourResult
+        colour: colourResult
       };
 
 

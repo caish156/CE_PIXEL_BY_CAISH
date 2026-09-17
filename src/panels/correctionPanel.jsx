@@ -3,8 +3,10 @@ import { CorrectionWorkflow } from "../App"
 import {
     get as getSettings,
     update as updateSettings,
-    subscribe as subscribeSettings
+    subscribe as subscribeSettings,
+    DEFAULTS as SETTINGS_DEFAULTS
 } from "../utils/settingsStore.js";
+
 import {
     deltaFromTarget,
     targetFromDelta,
@@ -47,6 +49,11 @@ export const CorrectionPanel = () => {
         }
     ];
 
+    // Standard / reference face sliders — single value per channel.
+    // Engine standardFace.l ko light reference ki tarah use karta hai.
+    // Ranges skin tone sliders ke saath consistent rakhe gaye hain.
+
+
 
     const [state, setState] = React.useState({
         folder: null,
@@ -72,7 +79,8 @@ export const CorrectionPanel = () => {
         () => getSettings().brightnessTarget
     );
 
-    // Skin Tone (Lab) — abhi UI-only state (engine wiring baad me)
+    // Skin Tone — HSL target ranges (ColourCastEngine ka skinConfig).
+    // settingsStore.skinTone hi source of truth hai.
     // Now using range format: { min, max } for each channel
     const [skinTone, setSkinTone] = React.useState(() => {
         const saved = getSettings().skinTone;
@@ -92,7 +100,23 @@ export const CorrectionPanel = () => {
         };
     });
 
-    // PRESETS
+    // Persisted reference face HSL used by the colour-correction workflow.
+    // No separate Standard Face UI is rendered.
+    const [standardFace, setStandardFace] = React.useState(() => {
+        const saved = getSettings().standardFace;
+
+        if (!saved || typeof saved !== "object") {
+            return { ...SETTINGS_DEFAULTS.standardFace };
+        }
+
+        return {
+            h: Number(saved.h),
+            s: Number(saved.s),
+            l: Number(saved.l)
+        };
+    });
+
+       // PRESETS
     const [presetList, setPresetList] = React.useState(
         () => listPresetsFromStore()
     );
@@ -105,6 +129,10 @@ export const CorrectionPanel = () => {
 
     // Skin tone sliders edit mode (Edit pill toggle)
     const [skinEdit, setSkinEdit] = React.useState(true);
+
+    // Legacy RGB-ratio pipeline (HSL range → sample points → ratio locus) remove
+    // kar di gayi hai: ColourCastEngine ab HSL ranges (skinTone) + standardFace
+    // use karta hai, ratios nahi.
 
     // Gradient for HSL tracks (display only — slider state untouched).
     // Saturation gradient derives from current Hue center; Lightness derives
@@ -137,6 +165,10 @@ export const CorrectionPanel = () => {
             if (settings.skinTone) {
                 setSkinTone(settings.skinTone);
             }
+
+            if (settings.standardFace) {
+                setStandardFace(settings.standardFace);
+            }
         });
 
         return unsubscribe;
@@ -165,20 +197,45 @@ export const CorrectionPanel = () => {
 
     // −/+ buttons: brightness delta ek step aage/peeche
     const stepBrightness = (direction) => {
+        // === BRIGHTNESS CLICK START ===
+        console.log("=== BRIGHTNESS CLICK START ===");
+        console.log("direction:", direction);
+        console.log("current brightnessTarget:", brightnessTarget);
+        console.log("current brightnessDelta:", deltaFromTarget(brightnessTarget));
+        // === END BRIGHTNESS CLICK START ===
 
+        // A: deltaFromTarget(brightnessTarget)
+        console.log("=== BRIGHTNESS STEP ===");
+        console.log("A START: deltaFromTarget(brightnessTarget)");
+        const currentDelta = deltaFromTarget(brightnessTarget);
+        console.log("A RESULT:", currentDelta);
+
+        // B: Math.max / Math.min calculation
+        console.log("B START: Math.max(-5, Math.min(5, currentDelta + direction))");
         const nextDelta = Math.max(
             -5,
-            Math.min(5, deltaFromTarget(brightnessTarget) + direction)
+            Math.min(5, currentDelta + direction)
         );
+        console.log("B RESULT:", nextDelta);
 
+        // C: targetFromDelta(nextDelta)
+        console.log("C START: targetFromDelta(nextDelta)");
         const nextTarget = targetFromDelta(nextDelta);
+        console.log("C RESULT:", nextTarget);
 
+        // D: setBrightnessTarget(nextTarget)
+        console.log("D BEFORE: setBrightnessTarget(nextTarget)");
         setBrightnessTarget(nextTarget);
+        console.log("D DONE: setBrightnessTarget completed");
 
+        // E: updateSettings({ brightnessTarget: nextTarget })
+        console.log("E BEFORE: updateSettings({ brightnessTarget: nextTarget })");
         updateSettings({
             brightnessTarget: nextTarget
         });
+        console.log("E DONE: updateSettings completed");
 
+        console.log("=== BRIGHTNESS CLICK END ===");
     };
 
 
@@ -262,9 +319,19 @@ export const CorrectionPanel = () => {
 
         setSkinTone(preset.settings.skinTone);
 
+        // standardFace bhi preset ka hissa hai. Preset store use normalize karta
+        // hai (legacy presets -> default), isliye yahan hamesha ek valid value
+        // milti hai; agar phir bhi missing ho to CURRENT value preserve karte hain.
+        const nextStandardFace = preset.settings.standardFace
+            ? preset.settings.standardFace
+            : standardFace;
+
+        setStandardFace(nextStandardFace);
+
         updateSettings({
             brightnessTarget: preset.settings.brightnessTarget,
-            skinTone: preset.settings.skinTone
+            skinTone: preset.settings.skinTone,
+            standardFace: nextStandardFace
         });
 
         setActivePresetState(preset.name);
@@ -284,7 +351,8 @@ export const CorrectionPanel = () => {
         // naam khali -> currently active preset overwrite
         const name = savePresetInStore(presetName, {
             brightnessTarget,
-            skinTone
+            skinTone,
+            standardFace
         });
 
         setPresetList(listPresetsFromStore());
@@ -329,6 +397,14 @@ export const CorrectionPanel = () => {
 
     const brightnessDelta = deltaFromTarget(brightnessTarget);
 
+    // === DIAGNOSTIC LOG ===
+    console.log("=== CORRECTION PANEL RENDER ===");
+    console.log("brightnessTarget:", brightnessTarget);
+    console.log("brightnessDelta:", brightnessDelta);
+    console.log("skinTone (skinConfig):", skinTone);
+    console.log("standardFace:", standardFace);
+    // === END DIAGNOSTIC LOG ===
+
 
     React.useEffect(() => {
 
@@ -367,6 +443,14 @@ export const CorrectionPanel = () => {
 
     };
 
+    const statusText = !state.folder
+        ? "Waiting for image folder"
+        : !state.running && state.completed === state.total
+            ? "All images completed"
+            : state.processing
+                ? `Processing ${state.currentIndex + 1} of ${state.total}`
+                : "Ready";
+
 
     return (
         <div className="ce-app">
@@ -390,10 +474,7 @@ export const CorrectionPanel = () => {
                 </div>
 
             </div>
-
-
-            {/* FOLDER */}
-
+           {/* FOLDER */}
             <div className="ce-section">
 
                 <div className="ce-section-title">
@@ -427,11 +508,7 @@ export const CorrectionPanel = () => {
                 )}
 
             </div>
-
-
-
             {/* CONTROLS */}
-
             <div className="ce-section">
 
                 <div className="ce-control-panel">
@@ -506,51 +583,54 @@ export const CorrectionPanel = () => {
                     <div className="ce-bright-row">
 
                         <button
+                            type="button"
                             className="ce-step-btn"
                             onClick={() => stepBrightness(-1)}
+                            disabled={brightnessDelta <= -5}
                         >
                             −
                         </button>
 
                         <button
+                            type="button"
                             className="ce-step-btn"
                             onClick={() => stepBrightness(1)}
+                            disabled={brightnessDelta >= 5}
                         >
                             +
                         </button>
 
-                        <input
-                            className="ce-slider-dark"
-                            type="range"
-                            min="-5"
-                            max="5"
-                            step="1"
-                            value={brightnessDelta}
-                            onInput={changeBrightnessTarget}
-                            onChange={changeBrightnessTarget}
-                        />
+                        <div className="ce-brightness-track">
+                            <div
+                                className="ce-brightness-handle"
+                                style={{ left: (((brightnessDelta + 5) / 10 * 100).toFixed(1)) + "%" }}
+                            />
+                        </div>
+
+                        <button
+                            type="button"
+                            className="ce-step-btn"
+                            onClick={() => stepBrightness(1)}
+                            disabled={brightnessDelta >= 5}
+                        >
+                            +
+                        </button>
+
+                        <button
+                            type="button"
+                            className="ce-step-btn"
+                            onClick={() => stepBrightness(-1)}
+                            disabled={brightnessDelta <= -5}
+                        >
+                            −
+                        </button>
 
                     </div>
+                    <div className="ce-strip ce-strip-brightness border-red" />
 
-                    <div className="ce-strip ce-strip-brightness" />
+                                        <div className="ce-divider" />
 
-                    <div className=" ce-ticks-brightness">
-                        <span className="ce-tick">-5</span>
-                        <span className="ce-tick">-4</span>
-                        <span className="ce-tick">-3</span>
-                        <span className="ce-tick">-2</span>
-                        <span className="ce-tick">-1</span>
-                        <span className="ce-tick">0</span>
-                        <span className="ce-tick">+1</span>
-                        <span className="ce-tick">+2</span>
-                        <span className="ce-tick">+3</span>
-                        <span className="ce-tick">+4</span>
-                        <span className="ce-tick">+5</span>
-                    </div>
-
-                    <div className="ce-divider" />
-
-                    {/* SKIN TONE (LAB) — UI ONLY (engine wiring baad me) */}
+                    {/* SKIN TONE (LAB) */}
 
                     <div className="ce-control-header">
 
@@ -560,7 +640,7 @@ export const CorrectionPanel = () => {
 
                         <span
                             className="ce-help"
-                            title="Lab-based skin tone target — engine wiring coming soon"
+                            title="HSL-based skin tone target — ColourCastEngine in ranges ka use karta hai"
                         >
                             ?
                         </span>
@@ -606,7 +686,7 @@ export const CorrectionPanel = () => {
 
                     </div>
 
-                </div>
+      
 
             </div>
             {/* IMAGE SUMMARY */}
@@ -790,20 +870,11 @@ export const CorrectionPanel = () => {
                 <div className="ce-status-dot" />
                
                 <div className="ce-status-text">
-
-                    {!state.folder
-                        ? "Waiting for image folder"
-                        : !state.running && state.completed === state.total
-                            ? "All images completed"
-                            : state.processing
-                                ? `Processing ${state.currentIndex + 1} of ${state.total}`
-                                : "Ready"
-                    }
-
+                    {statusText}
                 </div>
 
             </div>
 
-        </div>
+        </div></div>
     );
 };

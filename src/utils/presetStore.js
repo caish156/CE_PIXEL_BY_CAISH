@@ -3,7 +3,7 @@
 //
 // PRESET MANAGEMENT
 //
-// User apne settings snapshots (brightness + skin tone) ko
+// User apne settings snapshots (brightness + skin tone + standard face) ko
 // named presets ki tarah plugin me save kar sakta hai.
 // localStorage pe persist hota hai.
 //
@@ -16,12 +16,20 @@
 //     builtin: true,
 //     settings: {
 //       brightnessTarget: 146,
-//       skinTone: { hue: 25, saturation: 20, lightness: 70 }
+//       skinTone: { hue: { min, max }, saturation: { min, max }, lightness: { min, max } },
+//       standardFace: { h, s, l }
 //     }
 //   }
+//
+// NOTE: purane presets jinme standardFace nahi hai wo tootte nahi —
+// normalizeSettings() unhe default standardFace par fallback karta hai.
 // ============================================================
 
 const STORAGE_KEY = "ce_presets_v1";
+
+// standardFace ka SINGLE default definition settingsStore me hai.
+// Yahan duplicate literal nahi rakhte — wahi ek source reuse karte hain.
+const { DEFAULTS: SETTINGS_DEFAULTS } = require("./settingsStore.js");
 
 const DEFAULT_PRESET_NAME = "Default";
 
@@ -33,6 +41,11 @@ const DEFAULT_PRESET_SETTINGS = {
     saturation: { min: 17, max: 23 },
     lightness: { min: 67, max: 73 },
   },
+  // Standard / reference face (HSL) — skinTone aur brightnessTarget ke saath
+  // preset me travel karta hai.
+  // DEFAULT YAHAN DEFINE NAHI HOTA: settingsStore.DEFAULTS.standardFace hi
+  // single source of truth hai (duplicate literal nahi).
+  standardFace: SETTINGS_DEFAULTS.standardFace,
 };
 
 // skin tone channels ki valid ranges (UI ke slider ranges)
@@ -40,6 +53,13 @@ const SKIN_RANGES = {
   hue: [10, 50],
   saturation: [0, 40],
   lightness: [60, 90],
+};
+
+// standardFace channels ki valid ranges (engine domain: h 0-360, s/l 0-100)
+const STANDARD_FACE_RANGES = {
+  h: [0, 360],
+  s: [0, 100],
+  l: [0, 100],
 };
 
 // brightness target ki valid range (internal)
@@ -53,6 +73,30 @@ function clampRange(value, range) {
   const v = Number(value);
   if (!Number.isFinite(v)) return range[0];
   return Math.min(range[1], Math.max(range[0], Math.round(v)));
+}
+
+// Single-value clamp: invalid/missing value ko fallback (default) rakhta hai,
+// range[0] par nahi — isse purane presets default standardFace paate hain.
+function clampFaceValue(value, range, fallback) {
+  const v = Number(value);
+  if (!Number.isFinite(v)) return fallback;
+  return Math.min(range[1], Math.max(range[0], Math.round(v)));
+}
+
+/**
+ * standardFace ko normalized { h, s, l } me convert karta hai.
+ * Purana/legacy preset jisme standardFace nahi hai -> default par fallback
+ * (kabhi throw nahi karta).
+ */
+function normalizeStandardFace(value, fallback) {
+  const src = value && typeof value === 'object' ? value : {};
+  const base = fallback || DEFAULT_PRESET_SETTINGS.standardFace;
+
+  return {
+    h: clampFaceValue(src.h, STANDARD_FACE_RANGES.h, base.h),
+    s: clampFaceValue(src.s, STANDARD_FACE_RANGES.s, base.s),
+    l: clampFaceValue(src.l, STANDARD_FACE_RANGES.l, base.l),
+  };
 }
 
 /** Settings ko valid/normalized shape me convert karta hai. */
@@ -96,6 +140,9 @@ function normalizeSettings(settings) {
       saturation: normalizeChannel('saturation', DEFAULT_PRESET_SETTINGS.skinTone.saturation),
       lightness: normalizeChannel('lightness', DEFAULT_PRESET_SETTINGS.skinTone.lightness),
     },
+
+    // standardFace preset ka part hai — skinTone/brightnessTarget ke saath
+    standardFace: normalizeStandardFace(s.standardFace),
   };
 }
 
@@ -306,9 +353,11 @@ module.exports = {
   getPreset,
   subscribe,
   normalizeSettings,
+  normalizeStandardFace,
   DEFAULT_PRESET_NAME,
   DEFAULT_PRESET_SETTINGS,
   SKIN_RANGES,
+  STANDARD_FACE_RANGES,
 };
 
 

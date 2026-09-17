@@ -201,18 +201,26 @@ function applyBlueCurves(points) { return applyChannelCurves("blue", points); }
  */
 function factorToCurvePoints(factor) {
     const f = Number(factor);
+
     if (!isFinite(f) || f <= 0) {
         throw new Error(`Invalid curve factor: ${factor}`);
     }
-    const clamp = v => Math.max(0, Math.min(255, Math.round(v)));
+
+    const clamp = v =>
+        Math.max(0, Math.min(255, Math.round(v)));
+
     return [
-        [0, 0],
+        [0, clamp(0 * f)],
+        [64, clamp(64 * f)],
         [128, clamp(128 * f)],
+        [192, clamp(192 * f)],
         [255, clamp(255 * f)]
     ];
 }
 
-
+function convertCurveObjectsToPoints(curve) {
+    return curve.map(pt => [pt.input, pt.output]);
+}
 
 // ==========================================
 // TEST EXECUTION
@@ -243,5 +251,5 @@ module.exports = {
     applyGreenCurves,
     applyBlueCurves,
     factorToCurvePoints,
-    testChannelCurves
+    testChannelCurves,convertCurveObjectsToPoints
 }

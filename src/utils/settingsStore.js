@@ -9,7 +9,8 @@
 //
 // CURRENT SETTINGS:
 //   brightnessTarget : 130-160 (default 146) light correction ka target mean
-//   (skinTone: aane wale update ke liye)
+//   skinTone         : HSL target ranges { hue, saturation, lightness }
+//   standardFace     : reference skin colour (HSL) for ColourCastEngine
 // ============================================================
 
 const STORAGE_KEY = "ce_correction_settings_v1";
@@ -19,12 +20,22 @@ const DEFAULTS = {
   // UI delta scale: -5..+5 (0 = default), internal 131-161, default 146
   brightnessTarget: 146,
 
-  // Skin Tone (Lab) controls — abhi sirf UI/store, engine wiring baad me
+  // Skin Tone — HSL target ranges (ColourCastEngine ka skinConfig).
   // Using range format: { min, max } for each channel
   skinTone: {
     hue: { min: 22, max: 28 },
     saturation: { min: 17, max: 23 },
     lightness: { min: 67, max: 73 },
+  },
+
+  // Standard / reference face (HSL) — ColourCastEngine isko light reference
+  // ke roop me use karta hai (standardFace.l, 0-100 scale).
+  // Persistent global source of truth; presets isi ko save/restore karte hain.
+  // h 0-360, s 0-100, l 0-100
+  standardFace: {
+    h: 25,
+    s: 20,
+    l: 70,
   },
 };
 

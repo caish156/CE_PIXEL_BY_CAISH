@@ -3,23 +3,19 @@
 //
 // COLOUR CORRECTION WORKFLOW
 //
-// CURRENT IMAGE
+// RUNS AFTER THE LIGHT CORRECTION WORKFLOW
+//
+// VALIDATE ALL INPUTS         (imageName, imageFolder, faceData,
+//     ↓                        skinConfig, standardFace)
+// ACTIVE DOCUMENT             (Photoshop)
 //     ↓
-// COLLECT COLOUR DATA
+// COLLECT CURRENT COLOUR DATA (readImageColourData — AFTER light correction)
 //     ↓
-// USE EXISTING FACE DATA
+// GENERATE COLOUR CURVES      (generateColorCurves, engine = single source)
 //     ↓
-// COLOUR CAST + CAST %             (face-anchored: theme colors pe 0%)
+// APPLY CHANNEL CURVES        (RED / GREEN / BLUE)
 //     ↓
-// GREY WORLD x CAST % BLEND
-//     ↓
-// WARM TONE FINISH (subtle warm signature)
-//     ↓
-// CONVERT FACTORS TO CURVE POINTS
-//     ↓
-// APPLY CHANNEL CURVES (RED / BLUE)
-//     ↓
-// RE-COLLECT COLOUR DATA (POST-CORRECTION)
+// RE-COLLECT COLOUR DATA      (POST-CORRECTION)
 //     ↓
 // SAVE DATASET JSON (all images accumulate in 1 file)
 //
@@ -27,21 +23,8 @@
 // ============================================================
 
 
-const {
-   app,
-  action,
-  core
-} = window.require("photoshop");
-
-const {
-  getColorCastPercent,
-  getCorrectionFactors,
-  getAppliedCastPercent,
-  getGreyWorldCast,
-  getChannelAverages,
-  DEFAULT_CONFIG
-} = require("../utils/Colorcastengine");
-
+const { app } = window.require("photoshop");
+const { generateColorCurves } = require("../utils/Colorcastengine.example");
 
 const {
   readImageColourData
@@ -55,21 +38,87 @@ const {
 
 const {
   applyRedCurves,
+  applyGreenCurves,
   applyBlueCurves,
-  factorToCurvePoints
+  convertCurveObjectsToPoints
 } = require("../batchplays/curves");
 
+/**
+ * INPUT CONTRACT (order matters — matches App.jsx call site):
+ *
+ *   imageName      : non-empty string — dataset record ki identity
+ *   imageFolder    : UXP folder entry — dataset JSON yahin save hota hai
+ *   faceData       : existing face sampling { has_face, face_count, faces }
+ *   skinConfig     : HSL target ranges { hue, saturation, lightness } each { min, max }
+ *   standardFace   : reference HSL { h, s, l }; no default is inferred here
+ *
+ * All five are validated up-front, BEFORE any Photoshop / image operation.
+ */
 
-// ============================================================
-// WARM TONE FINISH (taste setting)
-// ============================================================
-// Grey-world correction image ko neutral/white bana deta hai.
-// Ye subtle warm signature correction ke UPAR add hota hai:
-//   Red thoda up (+S), Blue thoda down (-S)
-// 0 = off | 0.04 = subtle (default) | 0.08 = strong
-// ============================================================
+function validateColourCorrectionInputs({
+  imageName,
+  imageFolder,
+  faceData,
+  skinConfig,
+  standardFace
+}) {
 
-const WARM_TONE_STRENGTH = 0.04;
+  if (typeof imageName !== "string" || imageName.trim() === "") {
+
+    throw new Error(
+      "imageName is required (non-empty string) for Colour Correction Workflow"
+    );
+  }
+
+
+  if (!imageFolder) {
+
+    throw new Error(
+      "imageFolder is required for Colour Correction Workflow (dataset JSON is saved there)"
+    );
+  }
+
+
+  if (!faceData || typeof faceData !== "object") {
+
+    throw new Error(
+      "Face data not provided to Colour Correction Workflow"
+    );
+  }
+
+
+  // faces optional hai (no-face case), par agar diya hai to array hona chahiye
+  if (faceData.faces !== undefined && !Array.isArray(faceData.faces)) {
+
+    throw new Error(
+      "faceData.faces must be an array when provided to Colour Correction Workflow"
+    );
+  }
+
+
+  if (!standardFace || !["h", "s", "l"].every(key => Number.isFinite(standardFace[key]))) {
+
+    throw new Error(
+      "standardFace must be a caller-provided HSL reference { h, s, l }"
+    );
+  }
+
+
+  if (!skinConfig || !["hue", "saturation", "lightness"].every(key => {
+
+    const range = skinConfig[key];
+
+    return range &&
+      Number.isFinite(range.min) &&
+      Number.isFinite(range.max) &&
+      range.min <= range.max;
+  })) {
+
+    throw new Error(
+      "skinConfig must contain HSL ranges { hue, saturation, lightness }, each { min, max }"
+    );
+  }
+}
 
 
 // ============================================================
@@ -79,7 +128,9 @@ const WARM_TONE_STRENGTH = 0.04;
 async function runColourCorrectionWorkflow(
   imageName = "",
   imageFolder = null,
-  faceData = null
+  faceData = null,
+  skinConfig = null,
+  standardFace = null
 ) {
 
   console.log("");
@@ -98,7 +149,40 @@ async function runColourCorrectionWorkflow(
 
 
   // ==========================================================
-  // 1. ACTIVE DOCUMENT
+  // 1. INPUT VALIDATION  (Photoshop / image operations se PEHLE)
+  // ==========================================================
+  //
+  // Saare required inputs yahin validate hote hain. Iske baad hi
+  // Photoshop document ya image colour data touch kiya jaata hai.
+  //
+  //   imageName      -> dataset record ki identity (non-empty string)
+  //   imageFolder    -> dataset JSON isi folder me save hota hai
+  //   faceData       -> existing face sampling (has_face / face_count / faces)
+  //   skinConfig     -> HSL target ranges (UI sliders se)
+  //   standardFace   -> reference HSL { h, s, l }
+  //
+
+  validateColourCorrectionInputs({
+    imageName,
+    imageFolder,
+    faceData,
+    skinConfig,
+    standardFace
+  });
+
+  console.log(
+    "✅ Inputs validated:",
+    JSON.stringify({
+      imageName,
+      face_count: faceData.face_count,
+      skinConfig,
+      standardFace
+    })
+  );
+
+
+  // ==========================================================
+  // 2. ACTIVE DOCUMENT
   // ==========================================================
 
   const doc =
@@ -113,31 +197,22 @@ async function runColourCorrectionWorkflow(
   }
 
 
-  // ==========================================================
-  // 2. FACE DATA
-  // ==========================================================
-
-  if (!faceData) {
-
-    throw new Error(
-      "Face data not provided to Colour Correction Workflow"
-    );
-  }
-
-
   console.log(
     "🎯 Using existing face sampling data..."
   );
 
 
   // ==========================================================
-  // 3. COLLECT FRESH COLOUR DATA
+  // 3. COLLECT CURRENT IMAGE COLOUR DATA (POST LIGHT CORRECTION)
   // ==========================================================
   //
   // IMPORTANT:
-  // Image has already gone through Light Correction.
-  // Therefore colour data MUST be collected again
-  // from the current document.
+  // Image has already gone through the LIGHT CORRECTION workflow.
+  // Isliye colour data CURRENT document se FRESH padhna hai —
+  // light correction se pehle ka (stale) colour data use nahi karna.
+  //
+  // readImageColourData() koi argument nahi leta, koi cache nahi —
+  // ye active document ke RGB histograms live read karta hai.
   //
   // ==========================================================
 
@@ -198,276 +273,41 @@ async function runColourCorrectionWorkflow(
     faces:
       faceData.faces
   };
+ console.log(data);
+  // ==========================================================
+  // 5. GENERATE COLOUR CURVES — ENGINE IS THE SINGLE SOURCE
+  // ==========================================================
+
+  // All correction decisions belong to the engine. Keep its object points unchanged.
+  const engineResult = generateColorCurves(data, skinConfig, standardFace);
+  console.log("COLOUR CURVES FROM ENGINE:", JSON.stringify(engineResult));
+
 
   // ==========================================================
-  // 5. COLOUR CAST — FACE-ANCHORED (UNLOCKED)
+  // 6. APPLY CHANNEL CURVES (RED / GREEN / BLUE)
   // ==========================================================
-  //
-  // Colorcastengine.js ka role:
-  //
-  //   Haldi / sangeet jaise events me yellow scene THEME hota hai,
-  //   cast nahi. Engine face ke skin tone ko natural locus se check
-  //   karta hai:
-  //
-  //     - Face colour already natural   -> colorCastPercent = 0
-  //       (theme color — correction bilkul NAHI, yellow preserve)
-  //
-  //     - Real cast + grey-world skin ko natural zone me le aata hai
-  //       -> colorCastPercent 0-100 (kitna % improvement mila)
-  //
-  //     - Koi valid face nahi -> NO_FACE_FALLBACK_PERCENT (100)
-  //
-  // getCorrectionFactors() us % ko grey-world factors me blend karta hai:
-  //
-  //   t       = colorCastPercent / 100
-  //   factorR = 1 + (1/castR - 1) * t
-  //   factorB = 1 + (1/castB - 1) * t
-  //
 
-  console.log(
-    "🌈 Calculating face-anchored colour cast..."
-  );
+  // Only skip exact identity curves; no thresholds or additional correction.
+  const appliedChannels = {};
+  const channelAppliers = {
+    red: applyRedCurves,
+    green: applyGreenCurves,
+    blue: applyBlueCurves
+  };
 
-  const colourCast =
-    getColorCastPercent(data);
-
-  console.log(
-    "🌈 COLOUR CAST RESULT:",
-    JSON.stringify(colourCast)
-  );
-
-  // ==========================================================
-  // 5b. CAST % WINDOW — CLAMP to 15-85
-  // ==========================================================
-  //
-  // Policy (Colorcastengine config: CAST_PERCENT_MIN / MAX):
-  //
-  //   raw 0%   -> 15%  (minimum correction hamesha lagti hai)
-  //   raw 50%  -> 50%  (as-is)
-  //   raw 100% -> 85%  (full raw grey-world kabhi nahi lagti)
-  //
-
-  const castPercentRaw =
-    colourCast.colorCastPercent;
-
-  const castPercentApplied =
-    getAppliedCastPercent(castPercentRaw);
-
-  if (castPercentApplied !== castPercentRaw) {
-
-    console.log(
-      `🎚️ Cast % clamped: ${castPercentRaw}% -> ${castPercentApplied}% (range ${DEFAULT_CONFIG.CAST_PERCENT_MIN}-${DEFAULT_CONFIG.CAST_PERCENT_MAX})`
-    );
+  for (const channel of Object.keys(channelAppliers)) {
+    const curve = engineResult[channel];
+    appliedChannels[channel] = curve.some(point => point.input !== point.output);
+    if (appliedChannels[channel]) {
+      await channelAppliers[channel](convertCurveObjectsToPoints(curve));
+    }
   }
 
-  const correctionFactors =
-    getCorrectionFactors({
-      ...colourCast,
-      colorCastPercent: castPercentApplied
-    });
-
-  console.log(
-    "🎨 CORRECTION FACTORS (grey world x cast %):",
-    JSON.stringify(correctionFactors)
-  );
-
-
   // ==========================================================
-  // 6. PREDICT COLOUR CORRECTION (GREY WORLD x CAST %)
+  // 7. RE-COLLECT POST-CORRECTION COLOUR DATA
   // ==========================================================
   //
-  // GREY WORLD FULL CORRECTION (green = neutral reference):
-  //
-  //   castR = avg_r / avg_g
-  //   castB = avg_b / avg_g
-  //   factorR_full = 1 / castR
-  //   factorB_full = 1 / castB
-  //
-  // FINAL factors step 5 (correctionFactors) se aate hain —
-  // grey-world ko colorCastPercent ke hisaab se blend karke:
-  //
-  //   factorR = 1 + (factorR_full - 1) * (colorCastPercent / 100)
-  //   factorB = 1 + (factorB_full - 1) * (colorCastPercent / 100)
-  //
-  //   castPercentApplied = 15 -> halka touch-up (minimum)
-  //   castPercentApplied = 85 -> near-full grey-world (maximum)
-  //
-
-  console.log(
-    "🧠 Predicting colour correction (grey world x cast %)..."
-  );
-
-
-  const { avg_r, avg_g, avg_b } =
-    getChannelAverages(data);
-
-
-  if (!(avg_g > 0)) {
-
-    throw new Error(
-      "Grey world cast needs avg_g > 0 (green histogram empty)"
-    );
-  }
-
-
-  const { castR, castB } =
-    getGreyWorldCast(avg_r, avg_g, avg_b);
-
-
-  const factorR_full = 1 / castR;
-
-  const factorB_full = 1 / castB;
-
-
-  // Step 5 ka blended output hi FINAL hai
-  let factorR = correctionFactors.factorR;
-
-  let factorB = correctionFactors.factorB;
-
-
-  // SAFETY CLAMP — testing ke liye sane range (50% .. 200%)
-  const MIN_FACTOR = 0.5;
-  const MAX_FACTOR = 2.0;
-
-
-  if (
-    factorR < MIN_FACTOR ||
-    factorR > MAX_FACTOR ||
-    factorB < MIN_FACTOR ||
-    factorB > MAX_FACTOR
-  ) {
-
-    console.warn(
-      "⚠️ Extreme correction factor clamped to [0.5, 2.0]",
-      { factorR, factorB }
-    );
-  }
-
-
-  factorR =
-    Math.min(MAX_FACTOR, Math.max(MIN_FACTOR, factorR));
-
-  factorB =
-    Math.min(MAX_FACTOR, Math.max(MIN_FACTOR, factorB));
-
-
-  // ==========================================================
-  // WARM TONE FINISH — subtle warm signature
-  // ==========================================================
-  //
-  // Grey-world neutral banata hai; ye finish warm look wapas deti hai:
-  //   finalFactorR = correctionFactorR x (1 + WARM_TONE_STRENGTH)
-  //   finalFactorB = correctionFactorB x (1 - WARM_TONE_STRENGTH)
-  //
-
-  const warmFactorR = 1 + WARM_TONE_STRENGTH;
-
-  const warmFactorB = 1 - WARM_TONE_STRENGTH;
-
-  const finalFactorR = factorR * warmFactorR;
-
-  const finalFactorB = factorB * warmFactorB;
-
-  console.log(
-    `🔥 WARM TONE FINISH: R x${warmFactorR}, B x${warmFactorB} (strength ${WARM_TONE_STRENGTH})`
-  );
-
-
-  // CONVERT FACTORS -> CURVE POINTS
-  const redCurve =
-    factorToCurvePoints(finalFactorR);
-
-  const blueCurve =
-    factorToCurvePoints(finalFactorB);
-
-
-  // APPLY DECISION — final factor exactly 1 ho to channel untouched
-  const EPSILON = 0.001;
-
-  const applyRed =
-    Math.abs(finalFactorR - 1) > EPSILON;
-
-  const applyBlue =
-    Math.abs(finalFactorB - 1) > EPSILON;
-
-
-  console.log(
-    "🧮 GREY WORLD x CAST% PLAN:",
-    JSON.stringify({
-      status: colourCast.status,
-      castPercentRaw: colourCast.colorCastPercent,
-      castPercentApplied,
-      avg_r,
-      avg_g,
-      avg_b,
-      castR,
-      castB,
-      factorR_full,
-      factorB_full,
-      correctionFactorR: factorR,
-      correctionFactorB: factorB,
-      warmFactorR,
-      warmFactorB,
-      factorR: finalFactorR,
-      factorB: finalFactorB,
-      applyRed,
-      applyBlue,
-      redCurve,
-      blueCurve
-    })
-  );
-
-
-  // ==========================================================
-  // 7. APPLY COLOUR CORRECTION (CHANNEL CURVES)
-  // ==========================================================
-
-  console.log(
-    "🎨 Applying colour correction via channel curves..."
-  );
-
-  if (applyRed) {
-
-    await applyRedCurves(redCurve);
-
-    console.log(
-      "🔴 Red channel curve applied"
-    );
-
-  } else {
-
-    console.log(
-      "🔴 Red channel untouched (cast% = 0)"
-    );
-  }
-
-
-  if (applyBlue) {
-
-    await applyBlueCurves(blueCurve);
-
-    console.log(
-      "🔵 Blue channel curve applied"
-    );
-
-  } else {
-
-    console.log(
-      "🔵 Blue channel untouched (cast% = 0)"
-    );
-  }
-
-
-  console.log(
-    "✅ Channel curves applied."
-  );
-
-
-  // ==========================================================
-  // 8. RE-COLLECT POST-CORRECTION COLOUR DATA
-  // ==========================================================
-  //
-  // Grey-world + warm tone apply hone ke BAAD document se
+  // Engine curves apply hone ke BAAD document se
   // FRESH colour data padhte hain (histograms + averages).
   //
 
@@ -475,12 +315,10 @@ async function runColourCorrectionWorkflow(
     "📊 Re-collecting post-correction colour data..."
   );
 
-  const postColourData =
-    await readImageColourData();
 
 
   // ==========================================================
-  // 9. SAVE DATASET JSON (single file, all images accumulate)
+  // 8. SAVE DATASET JSON (single file, all images accumulate)
   // ==========================================================
   //
   // Light correction jaisa hi — colourCorrectionDataset.json
@@ -488,8 +326,8 @@ async function runColourCorrectionWorkflow(
   // 500 images correct hui -> file me 500 records.
   //
   //   input          -> pre-correction colour data + face data
-  //                     (same data jo colourCast ko diya gaya tha)
-  //   correction     -> cast %, factors, curves jo apply hue
+  //                     (same data passed to generateColorCurves)
+  //   correction     -> engine curves and applied channels
   //   postCorrection -> correction ke BAAD ka fresh colour data
   //
 
@@ -518,6 +356,10 @@ async function runColourCorrectionWorkflow(
       face_count: data.face_count,
       faces: data.faces
     },
+    skinConfig,
+    standardFace,
+    correction: { curves: engineResult, appliedChannels },
+
   };
 
   const datasetSave =
@@ -534,7 +376,7 @@ async function runColourCorrectionWorkflow(
 
 
   // ==========================================================
-  // 10. RESULT
+  // 9. RESULT
   // ==========================================================
 
   const result = {
@@ -572,37 +414,8 @@ async function runColourCorrectionWorkflow(
     faces:
       faceData.faces,
 
-    // --------------------------------------------------------
-    // STEP 5 — FACE-ANCHORED COLOUR CAST
-    // --------------------------------------------------------
-
-    colourCast: {
-      status: colourCast.status,
-      colorCastPercent: colourCast.colorCastPercent,
-      castPercentApplied,
-      validFaceCount: colourCast.validFaceCount ?? null,
-      note: colourCast.note ?? null
-    },
-
-    // --------------------------------------------------------
-    // STEP 6 — GREY WORLD x CAST % (final correction)
-    // --------------------------------------------------------
-
-    greyWorld: {
-      castR,
-      castB,
-      factorR_full,
-      factorB_full,
-      factorR: finalFactorR,
-      factorB: finalFactorB,
-      warmToneStrength: WARM_TONE_STRENGTH,
-      appliedR: applyRed,
-      appliedB: applyBlue,
-      redCurve,
-      blueCurve
-    },
-
-    // --------------------------------------------------------
+    correction: { curves: engineResult, appliedChannels },
+      // --------------------------------------------------------
     // DATASET JSON SAVE INFO
     // --------------------------------------------------------
 

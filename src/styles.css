@@ -32,7 +32,7 @@
 :root {
     --ce-blue: #1769ff;
     --ce-blue-dark: #0d4fd8;
-    --ce-white: #0f0f0f;
+    --ce-white: #ffffff;
     --ce-black: #000000;
     --ce-border: #d9d9d9;
     --ce-light: #f5f5f5;
@@ -108,7 +108,7 @@
 .ce-section-title {
     font-size: 10px;
     font-weight: 700;
-
+  
     letter-spacing: 1.2px;
     font-family: "Rajdhani", "Segoe UI", sans-serif;
     margin-bottom: 9px;
@@ -785,12 +785,13 @@
     height: 32px;
     padding: 0 12px;
     border: 1px solid var(--ce-black);
-    background: var(--ce-white);
+    background: var(--ce-blue);
     color: var(--ce-black);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.8px;
     cursor: pointer;
+
 }
 
 .ce-mini-btn:hover {
@@ -913,7 +914,12 @@
         #faf5ec 100%);
 }
 
+.border-red{
+     border: 1px solid red;
+}
+
 .ce-ticks {
+   
     display: flex;
     justify-content: space-between;
     margin-top: 4px;
@@ -1699,8 +1705,7 @@
 
 .ce-control-panel {
     border: 1px solid var(--ce-black);
-    background: var(--ce-white);
-    padding: 12px;
+        padding: 12px;
 }
 
 .ce-control-header {
@@ -1787,9 +1792,9 @@
 /* Larger card value for important numbers */
 
 .ce-card-value-lg {
-    font-size: 14px;
+    font-size: 20px;
     font-weight: 700;
-    color: var(--ce-blue);
+    color: var(--ce-white);
     min-width: 40px;
     text-align: right;
 }
@@ -1824,26 +1829,34 @@
     flex: 1 1 auto;
     min-width: 0;
     height: 4px;
-    background: var(--ce-black);
+    background: var(--ce-white);
     outline: none;
     cursor: pointer;
 }
-
 .ce-slider-dark::-webkit-slider-thumb {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--ce-white);
-    border: 2px solid var(--ce-blue);
+    -webkit-appearance: none;
+    appearance: none;
+
+    width: 5px;
+    height: 22px;
+
+    border-radius: 3px;
+
+    background: #ffffff;
+    border: 1px solid #ffffff;
+
     cursor: pointer;
 }
 
 .ce-slider-dark::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: var(--ce-white);
-    border: 2px solid var(--ce-blue);
+    width: 5px;
+    height: 22px;
+
+    border-radius: 3px;
+
+    background: #ffffff;
+    border: 1px solid #ffffff;
+
     cursor: pointer;
 }
 
@@ -1922,5 +1935,32 @@
 
 .ce-card-header {
     display: none;
+}
+
+
+
+/* =========================================================
+   BRIGHTNESS VISUAL TRACK (Task 7)
+   ========================================================= */
+
+.ce-brightness-track {
+    flex: 1 1 auto;
+    min-width: 0;
+    position: relative;
+    height: 12px;
+    background: #222;
+    border: 1px solid #222;
+    border-radius: 2px;
+}
+
+.ce-brightness-handle {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    height: 24px;
+    background: #ffffff;
+    border-radius: 2px;
+    z-index: 3;
 }
 

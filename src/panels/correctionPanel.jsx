@@ -55,17 +55,18 @@ export const CorrectionPanel = () => {
 
 
 
-    const [state, setState] = React.useState({
-        folder: null,
-        total: 0,
-        completed: 0,
-        currentIndex: -1,
-        currentImageName: "",
-        running: false,
-        processing: false,
-        currentResult: null,
-        progress: 0
-    });
+const [state, setState] = React.useState({
+    folder: null,
+    destinationFolder: null,
+    total: 0,
+    completed: 0,
+    currentIndex: -1,
+    currentImageName: "",
+    running: false,
+    processing: false,
+    currentResult: null,
+    progress: 0
+});
     console.log("CorrectionPanel state:");
 
     const workflowRef = React.useRef(null);
@@ -421,16 +422,17 @@ export const CorrectionPanel = () => {
 
     }, []);
 
+const start = async () => {
 
-    const start = async () => {
+    if (!workflowRef.current) {
+        return;
+    }
 
-        if (!workflowRef.current) {
-            return;
-        }
+    await workflowRef.current.start(
+        state.destinationFolder || null
+    );
 
-        await workflowRef.current.start();
-
-    };
+};
 
 
     const stop = async () => {
@@ -475,39 +477,98 @@ export const CorrectionPanel = () => {
 
             </div>
            {/* FOLDER */}
-            <div className="ce-section">
+  {/* FOLDERS */}
+<div className="ce-section">
 
-                <div className="ce-section-title">
-                    SOURCE FOLDER
-                </div>
+    <div className="ce-section-title">
+        FOLDERS
+    </div>
 
-                <button
-                    className="ce-folder-button"
-                    onClick={start}
-                    disabled={state.running}
-                >
-                    {state.running
-                        ? "PROCESSING..."
-                        : "SELECT IMAGE FOLDER"
-                    }
-                </button>
+    <div className="ce-folder-row">
 
+        {/* SOURCE */}
+        <div className="ce-folder-column">
 
-                {state.folder && (
-                    <div className="ce-folder-info">
-
-                        <div className="ce-folder-name">
-                            {state.folder.name}
-                        </div>
-
-                        <div className="ce-folder-path">
-                            {state.total} images found
-                        </div>
-
-                    </div>
-                )}
-
+            <div className="ce-folder-label">
+                SOURCE FOLDER
             </div>
+
+            <button
+                className="ce-folder-button"
+                onClick={start}
+                disabled={state.running}
+            >
+                {state.running
+                    ? "PROCESSING..."
+                    : "SELECT FOLDER"
+                }
+            </button>
+
+            {state.folder && (
+                <div className="ce-folder-info">
+
+                    <div className="ce-folder-name">
+                        {state.folder.name}
+                    </div>
+
+                    <div className="ce-folder-path">
+                        {state.total} images found
+                    </div>
+
+                </div>
+            )}
+
+        </div>
+
+
+        {/* DESTINATION */}
+        <div className="ce-folder-column">
+
+            <div className="ce-folder-label">
+                DESTINATION FOLDER
+            </div>
+
+            <button
+                className="ce-folder-button"
+                disabled={state.running}
+                onClick={async () => {
+
+                    const destination =
+                        await window.require("uxp").storage.localFileSystem.getFolder();
+
+                    if (!destination) {
+                        return;
+                    }
+
+                    setState(prev => ({
+                        ...prev,
+                        destinationFolder: destination
+                    }));
+
+                }}
+            >
+                SELECT FOLDER
+            </button>
+
+            {state.destinationFolder && (
+                <div className="ce-folder-info">
+
+                    <div className="ce-folder-name">
+                        {state.destinationFolder.name}
+                    </div>
+
+                    <div className="ce-folder-path">
+                        OUTPUT
+                    </div>
+
+                </div>
+            )}
+
+        </div>
+
+    </div>
+
+</div>
             {/* CONTROLS */}
             <div className="ce-section">
 

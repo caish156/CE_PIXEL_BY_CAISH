@@ -1,50 +1,122 @@
 const { app, core } = window.require("photoshop");
 
 async function openImageAtIndex(index, imageFiles) {
-    if (!imageFiles || index < 0 || index >= imageFiles.length) {
+
+    if (
+        !imageFiles ||
+        index < 0 ||
+        index >= imageFiles.length
+    ) {
         return null;
     }
 
-    const entry = imageFiles[index];
 
-    console.log(`📂 IMAGE ${index + 1}/${imageFiles.length}`);
-    console.log(`📄 Opening: ${entry.name}`);
+    // ========================================================
+    // CURRENT IMAGE DATA
+    // ========================================================
 
-    // Close currently open document
-    try {
-        const doc = app.activeDocument;
+    const imageData =
+        imageFiles[index];
 
-        if (doc) {
-            await core.executeAsModal(
-                async () => {
-                    await doc.close();
-                },
-                {
-                    commandName: "Close Previous Document"
-                }
-            );
 
-            console.log("🔒 Previous document closed");
-        }
-    } catch (e) {
-        console.log("⚠️ Previous document close:", e.message);
-    }
+    // Recursive selectFolder() ke baad:
+    //
+    // {
+    //     file: UXP file entry,
+    //     name: "img1.jpg",
+    //     relativePath: "bride/day1/img1.jpg"
+    // }
 
-    // Open next image
-    await core.executeAsModal(
-        async () => {
-            await app.open(entry);
-        },
-        {
-            commandName: "Open Image"
-        }
+
+    const entry =
+        imageData.file;
+
+
+    console.log(
+        `📂 IMAGE ${index + 1}/${imageFiles.length}`
     );
 
-    console.log(`✅ Opened: ${entry.name}`);
+    console.log(
+        `📄 Opening: ${imageData.relativePath}`
+    );
 
-    return entry.name;
+
+    // ========================================================
+    // CLOSE CURRENTLY OPEN DOCUMENT
+    // ========================================================
+
+    try {
+
+        const doc =
+            app.activeDocument;
+
+
+        if (doc) {
+
+            await core.executeAsModal(
+
+                async () => {
+
+                    await doc.close();
+
+                },
+
+                {
+                    commandName:
+                        "Close Previous Document"
+                }
+
+            );
+
+
+            console.log(
+                "🔒 Previous document closed"
+            );
+
+        }
+
+    } catch (e) {
+
+        console.log(
+            "⚠️ Previous document close:",
+            e.message
+        );
+
+    }
+
+
+    // ========================================================
+    // OPEN NEXT IMAGE
+    // ========================================================
+
+    await core.executeAsModal(
+
+        async () => {
+
+            await app.open(entry);
+
+        },
+
+        {
+            commandName:
+                "Open Image"
+        }
+
+    );
+
+
+    console.log(
+        `✅ Opened: ${imageData.relativePath}`
+    );
+
+
+    return imageData.name;
+
 }
 
+
 module.exports = {
+
     openImageAtIndex
+
 };
